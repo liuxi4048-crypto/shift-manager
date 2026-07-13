@@ -1,6 +1,5 @@
-// localStorage 永続化
-
-const STORAGE_KEY = 'shift-manager-v1'
+// GAS Web App（スプレッドシート）経由の永続化。
+// 保存先はローカルではなくスプレッドシートで、複数端末・複数スタッフ間で共有される。
 
 export const DEFAULT_SHIFT_TYPES = [
   { id: 'early', name: '早番', short: '早', start: '07:00', end: '16:00', color: '#2e86de' },
@@ -22,31 +21,43 @@ export function defaultState() {
   }
 }
 
-export function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultState()
-    const parsed = JSON.parse(raw)
-    return {
-      staff: Array.isArray(parsed.staff) ? parsed.staff : [],
-      shiftTypes: Array.isArray(parsed.shiftTypes) && parsed.shiftTypes.length > 0
-        ? parsed.shiftTypes
-        : DEFAULT_SHIFT_TYPES,
-      assignments: parsed.assignments && typeof parsed.assignments === 'object'
-        ? parsed.assignments
-        : {},
-    }
-  } catch {
-    return defaultState()
+// GAS から返ってきた state の形を防御的に正規化する
+export function normalizeState(raw) {
+  if (!raw || typeof raw !== 'object') return defaultState()
+  return {
+    staff: Array.isArray(raw.staff) ? raw.staff : [],
+    shiftTypes: Array.isArray(raw.shiftTypes) && raw.shiftTypes.length > 0
+      ? raw.shiftTypes
+      : DEFAULT_SHIFT_TYPES,
+    assignments: raw.assignments && typeof raw.assignments === 'object'
+      ? raw.assignments
+      : {},
   }
 }
 
-export function saveState(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch {
-    // 容量超過などは黙って無視（画面上のデータは維持される）
-  }
+export async function fetchState(endpointUrl, token) {
+  const url = new URL(endpointUrl)
+  url.searchParams.set('token', token)
+  url.searchParams.set('action', 'state')
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`データの取得に失敗しました（${res.status}）`)
+  const data = await res.json()
+  if (data.error) throw new Error(data.error)
+  return normalizeState(data)
+}
+
+export async function saveState(endpointUrl, token, state) {
+  // Content-Type を text/plain にすることで、GAS が応答しない CORS プリフライト
+  // (OPTIONS) を発生させずに送信する（GAS Web App の既知の制約への対処）。
+  const res = await fetch(endpointUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token, ...state }),
+  })
+  if (!res.ok) throw new Error(`保存に失敗しました（${res.status}）`)
+  const data = await res.json()
+  if (data.error) throw new Error(data.error)
+  return data
 }
 
 export function newId() {

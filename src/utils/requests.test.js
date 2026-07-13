@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { groupRequestsByDate } from './requests.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fetchShiftRequests, groupRequestsByDate } from './requests.js'
 
 describe('groupRequestsByDate', () => {
   it('日付ごとにグループ化する', () => {
@@ -20,5 +20,23 @@ describe('groupRequestsByDate', () => {
 
   it('空配列は空オブジェクトを返す', () => {
     expect(groupRequestsByDate([])).toEqual({})
+  })
+})
+
+describe('fetchShiftRequests', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('action=requests と token, month をクエリに付与する（GAS側の action ルーティングと一致させる）', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ requests: [] }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchShiftRequests('https://example.com/exec', 'tok', '2026-07')
+
+    const calledUrl = new URL(fetchMock.mock.calls[0][0])
+    expect(calledUrl.searchParams.get('action')).toBe('requests')
+    expect(calledUrl.searchParams.get('token')).toBe('tok')
+    expect(calledUrl.searchParams.get('month')).toBe('2026-07')
   })
 })

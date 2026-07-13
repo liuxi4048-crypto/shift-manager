@@ -356,3 +356,31 @@ input {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* GAS未設定・読み込み中・エラー */
+.setup-required {
+  max-width: 480px;
+  margin: 80px auto;
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.setup-required code {
+  background: #eef1f4;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* 保存ステータス */
+.save-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.save-status-saving { color: var(--accent); }
+.save-status-saved { color: #27ae60; }
+.save-status-error { color: var(--danger); }
