@@ -20,8 +20,11 @@
 const SHEET_NAME = 'シフト希望';
 
 function doGet(e) {
+  // Apps Script エディタから doGet を手動実行した場合、e は undefined になる
+  const params = (e && e.parameter) || {};
+
   const token = PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN');
-  if (!token || e.parameter.token !== token) {
+  if (!token || params.token !== token) {
     return jsonResponse({ error: 'unauthorized' });
   }
 
@@ -43,27 +46,34 @@ function doGet(e) {
   const idxShift = col('希望シフト');
   const idxNote = col('備考');
 
+  if (idxName < 0 || idxDate < 0) {
+    return jsonResponse({ error: '必須列（氏名・対象日）がシートに見つかりません' });
+  }
+
+  // スプレッドシート自体のタイムゾーンで整形する（スクリプトプロジェクトの
+  // タイムゾーン設定とシートのタイムゾーンが異なると日付がずれるため）
+  const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+
   const requests = values.slice(1)
     .filter((row) => row[idxName] && row[idxDate])
     .map((row) => ({
-      timestamp: idxTimestamp >= 0 ? formatDate(row[idxTimestamp]) : null,
+      timestamp: idxTimestamp >= 0 ? formatDate(row[idxTimestamp], tz) : null,
       name: String(row[idxName]).trim(),
-      date: formatDate(row[idxDate]),
+      date: formatDate(row[idxDate], tz),
       shift: idxShift >= 0 ? String(row[idxShift]).trim() : '',
       note: idxNote >= 0 ? String(row[idxNote]).trim() : '',
     }));
 
-  const month = e.parameter.month; // "YYYY-MM" 指定があれば絞り込む
+  const month = params.month; // "YYYY-MM" 指定があれば絞り込む
   const filtered = month ? requests.filter((r) => r.date && r.date.startsWith(month)) : requests;
 
   return jsonResponse({ requests: filtered });
 }
 
-function formatDate(value) {
+function formatDate(value, tz) {
   if (!value) return null;
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return String(value);
-  const tz = Session.getScriptTimeZone();
   return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
 }
 

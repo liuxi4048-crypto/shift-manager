@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchShiftRequests } from '../utils/requests.js'
 
 const ENDPOINT_URL = import.meta.env.VITE_GAS_ENDPOINT_URL
@@ -8,6 +8,13 @@ export default function ShiftRequestsPanel({ monthPrefix, onLoaded }) {
   const [status, setStatus] = useState('idle') // idle | loading | done | error
   const [error, setError] = useState('')
   const [count, setCount] = useState(0)
+
+  // 表示中の月が変わったら、前の月の「取り込み済み」表示を持ち越さない
+  useEffect(() => {
+    setStatus('idle')
+    setError('')
+    setCount(0)
+  }, [monthPrefix])
 
   const configured = Boolean(ENDPOINT_URL && ACCESS_TOKEN)
 

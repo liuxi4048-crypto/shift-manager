@@ -24,8 +24,17 @@ function loadGisScript() {
 
 // Google アカウントでのログインを要求するゲート。
 // クライアントのみの簡易チェックであり、真のセキュリティ境界ではない。
+function loadValidSession() {
+  const cached = loadSession()
+  if (cached && !isEmailAllowed(cached.email)) {
+    clearSession()
+    return null
+  }
+  return cached
+}
+
 export default function LoginGate({ children }) {
-  const [user, setUser] = useState(loadSession)
+  const [user, setUser] = useState(loadValidSession)
   const [error, setError] = useState('')
   const buttonRef = useRef(null)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
