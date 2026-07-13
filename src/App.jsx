@@ -4,15 +4,19 @@ import DayEditor from './components/DayEditor.jsx'
 import StaffPanel from './components/StaffPanel.jsx'
 import ShiftTypePanel from './components/ShiftTypePanel.jsx'
 import SummaryPanel from './components/SummaryPanel.jsx'
+import ShiftRequestsPanel from './components/ShiftRequestsPanel.jsx'
+import LoginGate from './components/LoginGate.jsx'
 import { addMonths, daysInMonth, monthKey } from './utils/date.js'
 import { buildCsv } from './utils/stats.js'
 import { loadState, saveState } from './utils/storage.js'
+import { groupRequestsByDate } from './utils/requests.js'
 
 export default function App() {
   const [state, setState] = useState(loadState)
   const now = new Date()
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 })
   const [selectedDate, setSelectedDate] = useState(null)
+  const [requestsByDate, setRequestsByDate] = useState({})
 
   useEffect(() => {
     saveState(state)
@@ -36,11 +40,13 @@ export default function App() {
   const moveMonth = (delta) => {
     setView((v) => addMonths(v.year, v.month, delta))
     setSelectedDate(null)
+    setRequestsByDate({})
   }
 
   const goToday = () => {
     setView({ year: now.getFullYear(), month: now.getMonth() + 1 })
     setSelectedDate(null)
+    setRequestsByDate({})
   }
 
   const exportCsv = () => {
@@ -61,6 +67,7 @@ export default function App() {
   }
 
   return (
+    <LoginGate>
     <div className="app">
       <header className="app-header">
         <h1>シフト管理</h1>
@@ -83,6 +90,7 @@ export default function App() {
             shiftTypes={state.shiftTypes}
             selectedDate={selectedDate}
             onSelectDate={(key) => setSelectedDate((cur) => (cur === key ? null : key))}
+            requestsByDate={requestsByDate}
           />
           {selectedDate && (
             <DayEditor
@@ -92,12 +100,17 @@ export default function App() {
               shiftTypes={state.shiftTypes}
               onChange={setDayAssignments}
               onClose={() => setSelectedDate(null)}
+              requests={requestsByDate[selectedDate] || []}
             />
           )}
         </div>
         <aside className="sidebar">
           <StaffPanel staff={state.staff} onChange={setStaff} />
           <ShiftTypePanel shiftTypes={state.shiftTypes} onChange={setShiftTypes} />
+          <ShiftRequestsPanel
+            monthPrefix={monthPrefix}
+            onLoaded={(requests) => setRequestsByDate(groupRequestsByDate(requests))}
+          />
           <SummaryPanel
             assignments={state.assignments}
             staff={state.staff}
@@ -111,5 +124,6 @@ export default function App() {
         日付をクリックしてシフトを割り当てます。データはこのブラウザに自動保存されます。
       </footer>
     </div>
+    </LoginGate>
   )
 }

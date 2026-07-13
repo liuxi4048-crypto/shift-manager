@@ -2,7 +2,7 @@ import { parseDateKey, WEEKDAY_LABELS } from '../utils/date.js'
 
 // 選択した日のシフト割り当てを編集するパネル。
 // スタッフ×シフト種別のトグルで直感的に割り当てる。
-export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onChange, onClose }) {
+export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onChange, onClose, requests = [] }) {
   const { year, month, day } = parseDateKey(dateKey)
   const weekday = WEEKDAY_LABELS[new Date(year, month - 1, day).getDay()]
   const entries = assignments[dateKey] || []
@@ -26,6 +26,16 @@ export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onC
         <h2>{month}月{day}日（{weekday}）のシフト</h2>
         <button className="ghost" onClick={onClose}>閉じる</button>
       </div>
+      {requests.length > 0 && (
+        <ul className="request-list">
+          {requests.map((r, i) => (
+            <li key={i}>
+              <strong>{r.name}</strong> 希望: {r.shift || '（未指定）'}
+              {r.note && <span className="request-note"> ／ {r.note}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       {staff.length === 0 ? (
         <p className="empty">先にスタッフを追加してください。</p>
       ) : (
