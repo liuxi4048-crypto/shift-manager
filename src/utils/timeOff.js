@@ -5,6 +5,7 @@ export const TIME_OFF_STATUS_LABEL = {
   pending: '審査中',
   approved: '承認済み',
   rejected: '却下',
+  cancelled: '取消済み',
 }
 
 export async function fetchTimeOffRequests(endpointUrl, token) {
@@ -36,6 +37,11 @@ export function submitTimeOffRequest(endpointUrl, token, { staffId, date, reason
 
 export function updateTimeOffRequest(endpointUrl, token, { requestId, status }) {
   return postAction(endpointUrl, token, 'updateTimeOffRequest', { requestId, status })
+}
+
+// バイトが自分の「審査中」の希望休を取り消す。承認/却下済みは取り消せない（GAS側でも検証する）。
+export function cancelTimeOffRequest(endpointUrl, token, { requestId }) {
+  return postAction(endpointUrl, token, 'cancelTimeOffRequest', { requestId })
 }
 
 // 日付キー -> その日に承認済みの希望休を持つスタッフID配列

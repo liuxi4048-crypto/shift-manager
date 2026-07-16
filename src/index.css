@@ -502,6 +502,7 @@ input {
 
 .timeoff-item.status-approved { border-color: #27ae60; background: #f2fbf5; }
 .timeoff-item.status-rejected { border-color: var(--danger); background: #fdf3f2; opacity: 0.85; }
+.timeoff-item.status-cancelled { opacity: 0.6; }
 
 .timeoff-main {
   display: flex;
@@ -533,3 +534,14 @@ input {
 .status-pill.status-pending { background: #fdf2e0; color: #b9770e; }
 .status-pill.status-approved { background: #eafaf1; color: #1e8449; }
 .status-pill.status-rejected { background: #fdedec; color: #c0392b; }
+.status-pill.status-cancelled { background: #eceff1; color: #607d8b; }
+
+/* 店舗切替 */
+.store-switch {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+}

@@ -18,6 +18,7 @@ export function defaultState() {
     staff: [],
     shiftTypes: DEFAULT_SHIFT_TYPES,
     assignments: {},
+    stores: [],
   }
 }
 
@@ -32,10 +33,12 @@ export function normalizeState(raw) {
     assignments: raw.assignments && typeof raw.assignments === 'object'
       ? raw.assignments
       : {},
+    stores: Array.isArray(raw.stores) ? raw.stores : [],
   }
 }
 
 // role は 'admin'（管理者）または 'staff'（バイト）。未設定時は 'staff' 扱い。
+// storeId が空の管理者は「本部管理者」として全店舗を切り替えて閲覧・管理できる。
 export function normalizeStaffMember(s) {
   return {
     id: s.id,
@@ -43,6 +46,7 @@ export function normalizeStaffMember(s) {
     color: s.color || '',
     email: (s.email || '').trim().toLowerCase(),
     role: s.role === 'admin' ? 'admin' : 'staff',
+    storeId: s.storeId || '',
   }
 }
 
@@ -52,6 +56,17 @@ export function findStaffByEmail(staff, email) {
   if (!email) return null
   const target = email.trim().toLowerCase()
   return staff.find((s) => s.email && s.email === target) || null
+}
+
+// assignments（日付キー -> [{staffId, shiftTypeId}]）を、指定したスタッフID集合に
+// 含まれるエントリだけに絞り込む。他店舗のスタッフの割り当てをUI上に出さないための処理。
+export function filterAssignmentsByStaffIds(assignments, staffIds) {
+  const result = {}
+  for (const [dateKey, entries] of Object.entries(assignments)) {
+    const filtered = entries.filter((e) => staffIds.has(e.staffId))
+    if (filtered.length > 0) result[dateKey] = filtered
+  }
+  return result
 }
 
 export async function fetchState(endpointUrl, token) {

@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { STAFF_COLORS, newId } from '../utils/storage.js'
 
-export default function StaffPanel({ staff, onChange }) {
+export default function StaffPanel({ staff, onChange, stores = [], defaultStoreId = '' }) {
   const [name, setName] = useState('')
 
   const addStaff = () => {
     const trimmed = name.trim()
     if (!trimmed) return
     const color = STAFF_COLORS[staff.length % STAFF_COLORS.length]
-    onChange([...staff, { id: newId(), name: trimmed, color, email: '', role: 'staff' }])
+    onChange([...staff, { id: newId(), name: trimmed, color, email: '', role: 'staff', storeId: defaultStoreId }])
     setName('')
   }
 
@@ -64,6 +64,19 @@ export default function StaffPanel({ staff, onChange }) {
                 <option value="staff">バイト</option>
                 <option value="admin">管理者</option>
               </select>
+              {stores.length > 0 && (
+                <select
+                  className="staff-role"
+                  value={s.storeId || ''}
+                  onChange={(e) => updateStaff(s.id, { storeId: e.target.value })}
+                  title="所属店舗"
+                >
+                  <option value="">本部（店舗未設定）</option>
+                  {stores.map((store) => (
+                    <option key={store.id} value={store.id}>{store.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </li>
         ))}

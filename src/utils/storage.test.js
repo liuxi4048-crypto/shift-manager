@@ -1,13 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_SHIFT_TYPES, fetchState, findStaffByEmail, normalizeState, normalizeStaffMember, saveState } from './storage.js'
+import {
+  DEFAULT_SHIFT_TYPES,
+  fetchState,
+  filterAssignmentsByStaffIds,
+  findStaffByEmail,
+  normalizeState,
+  normalizeStaffMember,
+  saveState,
+} from './storage.js'
 
 describe('normalizeState', () => {
-  it('スタッフに email/role のデフォルトを補いつつ形を維持する', () => {
+  it('スタッフに email/role/storeId のデフォルトを補いつつ形を維持する', () => {
     const raw = { staff: [{ id: 'a', name: '田中' }], shiftTypes: [{ id: 't' }], assignments: { '2026-07-01': [] } }
     const result = normalizeState(raw)
-    expect(result.staff).toEqual([{ id: 'a', name: '田中', color: '', email: '', role: 'staff' }])
+    expect(result.staff).toEqual([{ id: 'a', name: '田中', color: '', email: '', role: 'staff', storeId: '' }])
     expect(result.shiftTypes).toEqual(raw.shiftTypes)
     expect(result.assignments).toEqual(raw.assignments)
+    expect(result.stores).toEqual([])
+  })
+
+  it('stores が配列でなければ空配列にする', () => {
+    expect(normalizeState({ staff: [], shiftTypes: [{ id: 't' }], assignments: {}, stores: null }).stores).toEqual([])
+  })
+
+  it('stores をそのまま保持する', () => {
+    const stores = [{ id: 's1', name: '渋谷店' }]
+    expect(normalizeState({ staff: [], shiftTypes: [{ id: 't' }], assignments: {}, stores }).stores).toEqual(stores)
   })
 
   it('staff が配列でなければ空配列にする', () => {
@@ -38,6 +56,31 @@ describe('normalizeStaffMember', () => {
 
   it('email を trim・小文字化する', () => {
     expect(normalizeStaffMember({ id: 'a', email: '  User@Example.com  ' }).email).toBe('user@example.com')
+  })
+
+  it('storeId が無ければ空文字にする', () => {
+    expect(normalizeStaffMember({ id: 'a' }).storeId).toBe('')
+    expect(normalizeStaffMember({ id: 'a', storeId: 'store1' }).storeId).toBe('store1')
+  })
+})
+
+describe('filterAssignmentsByStaffIds', () => {
+  it('指定したスタッフIDのエントリだけを残す', () => {
+    const assignments = {
+      '2026-07-14': [{ staffId: 'a', shiftTypeId: 'early' }, { staffId: 'b', shiftTypeId: 'late' }],
+      '2026-07-15': [{ staffId: 'b', shiftTypeId: 'night' }],
+    }
+    const result = filterAssignmentsByStaffIds(assignments, new Set(['a']))
+    expect(result).toEqual({ '2026-07-14': [{ staffId: 'a', shiftTypeId: 'early' }] })
+  })
+
+  it('該当エントリが無い日付は結果に含めない', () => {
+    const assignments = { '2026-07-14': [{ staffId: 'b', shiftTypeId: 'early' }] }
+    expect(filterAssignmentsByStaffIds(assignments, new Set(['a']))).toEqual({})
+  })
+
+  it('空のassignmentsは空を返す', () => {
+    expect(filterAssignmentsByStaffIds({}, new Set(['a']))).toEqual({})
   })
 })
 

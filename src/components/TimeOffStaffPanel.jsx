@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { TIME_OFF_STATUS_LABEL } from '../utils/timeOff.js'
 
 // バイト向け: 自分の希望休を申請し、過去の申請状況を確認する。
-export default function TimeOffStaffPanel({ myRequests, onSubmit, submitting }) {
+// 審査中の申請は自分で取り消せる（承認/却下済みは不可）。
+export default function TimeOffStaffPanel({ myRequests, onSubmit, onCancel, submitting, cancellingId }) {
   const [date, setDate] = useState('')
   const [reason, setReason] = useState('')
 
@@ -44,6 +45,17 @@ export default function TimeOffStaffPanel({ myRequests, onSubmit, submitting }) 
                 <span className={`status-pill status-${r.status}`}>{TIME_OFF_STATUS_LABEL[r.status] || r.status}</span>
               </div>
               {r.reason && <div className="timeoff-reason">理由: {r.reason}</div>}
+              {r.status === 'pending' && (
+                <div className="timeoff-actions">
+                  <button
+                    className="ghost danger"
+                    disabled={cancellingId === r.id}
+                    onClick={() => onCancel(r.id)}
+                  >
+                    {cancellingId === r.id ? '取り消し中…' : '取り消す'}
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

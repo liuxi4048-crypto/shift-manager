@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  cancelTimeOffRequest,
   fetchTimeOffRequests,
   groupApprovedByDate,
   submitTimeOffRequest,
@@ -55,6 +56,15 @@ describe('GAS呼び出し', () => {
     expect(body.action).toBe('updateTimeOffRequest')
     expect(body.requestId).toBe('r1')
     expect(body.status).toBe('approved')
+  })
+
+  it('cancelTimeOffRequest は action と requestId を送る', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', fetchMock)
+    await cancelTimeOffRequest('https://example.com/exec', 'tok', { requestId: 'r1' })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.action).toBe('cancelTimeOffRequest')
+    expect(body.requestId).toBe('r1')
   })
 
   it('エラーレスポンスは例外にする', async () => {

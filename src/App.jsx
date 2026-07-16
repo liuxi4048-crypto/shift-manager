@@ -3,6 +3,7 @@ import Calendar from './components/Calendar.jsx'
 import DayEditor from './components/DayEditor.jsx'
 import StaffPanel from './components/StaffPanel.jsx'
 import ShiftTypePanel from './components/ShiftTypePanel.jsx'
+import StorePanel from './components/StorePanel.jsx'
 import SummaryPanel from './components/SummaryPanel.jsx'
 import ShiftRequestsPanel from './components/ShiftRequestsPanel.jsx'
 import TimeOffAdminPanel from './components/TimeOffAdminPanel.jsx'
@@ -10,9 +11,15 @@ import TimeOffStaffPanel from './components/TimeOffStaffPanel.jsx'
 import LoginGate from './components/LoginGate.jsx'
 import { addMonths, daysInMonth, monthKey } from './utils/date.js'
 import { buildCsv } from './utils/stats.js'
-import { fetchState, findStaffByEmail, saveState } from './utils/storage.js'
+import { fetchState, filterAssignmentsByStaffIds, findStaffByEmail, saveState } from './utils/storage.js'
 import { groupRequestsByDate } from './utils/requests.js'
-import { fetchTimeOffRequests, groupApprovedByDate, submitTimeOffRequest, updateTimeOffRequest } from './utils/timeOff.js'
+import {
+  cancelTimeOffRequest,
+  fetchTimeOffRequests,
+  groupApprovedByDate,
+  submitTimeOffRequest,
+  updateTimeOffRequest,
+} from './utils/timeOff.js'
 
 const ENDPOINT_URL = import.meta.env.VITE_GAS_ENDPOINT_URL
 const ACCESS_TOKEN = import.meta.env.VITE_GAS_ACCESS_TOKEN
@@ -57,6 +64,8 @@ function ShiftManagerApp({ user }) {
   const [saveErrorMessage, setSaveErrorMessage] = useState('')
   const [timeOffBusyId, setTimeOffBusyId] = useState(null)
   const [timeOffSubmitting, setTimeOffSubmitting] = useState(false)
+  const [timeOffCancellingId, setTimeOffCancellingId] = useState(null)
+  const [selectedStoreId, setSelectedStoreId] = useState('')
   const isFirstStateChange = useRef(true)
   const saveGeneration = useRef(0)
 
@@ -127,21 +136,59 @@ function ShiftManagerApp({ user }) {
   const role = !loginConfigured ? 'admin' : (currentStaff ? currentStaff.role : null)
   const isAdmin = role === 'admin'
 
-  const approvedTimeOffByDate = useMemo(() => groupApprovedByDate(timeOffRequests), [timeOffRequests])
+  // ---- 店舗スコープ ----
+  // storeId を持たない管理者は「本部管理者」として全店舗を切り替えて閲覧・管理できる。
+  // 店舗を1件も作らなければ全員 storeId が空のままなので、従来通り単一店舗として動作する。
+  const stores = state?.stores || []
+  const isHeadOffice = !loginConfigured || (isAdmin && currentStaff && !currentStaff.storeId)
+
+  useEffect(() => {
+    if (isHeadOffice && stores.length > 0 && !selectedStoreId) {
+      setSelectedStoreId(stores[0].id)
+    }
+  }, [isHeadOffice, stores, selectedStoreId])
+
+  const effectiveStoreId = isHeadOffice ? selectedStoreId : (currentStaff?.storeId || '')
+
+  const storeStaff = useMemo(
+    () => (state ? state.staff.filter((s) => (s.storeId || '') === (effectiveStoreId || '')) : []),
+    [state, effectiveStoreId],
+  )
+  const storeStaffIds = useMemo(() => new Set(storeStaff.map((s) => s.id)), [storeStaff])
+  const storeAssignments = useMemo(
+    () => (state ? filterAssignmentsByStaffIds(state.assignments, storeStaffIds) : {}),
+    [state, storeStaffIds],
+  )
+  const storeTimeOffRequests = useMemo(
+    () => timeOffRequests.filter((r) => storeStaffIds.has(r.staffId)),
+    [timeOffRequests, storeStaffIds],
+  )
+
+  const approvedTimeOffByDate = useMemo(() => groupApprovedByDate(storeTimeOffRequests), [storeTimeOffRequests])
   const myTimeOffRequests = useMemo(
     () => (currentStaff ? timeOffRequests.filter((r) => r.staffId === currentStaff.id) : []),
     [timeOffRequests, currentStaff],
   )
 
-  const setStaff = (staff) => setState((s) => ({ ...s, staff }))
+  // スタッフ・シフト表は「現在の店舗」の分だけを子コンポーネントに渡し、
+  // 変更時は他店舗のデータを保ったまま該当分だけを差し替える。
+  const setStaff = (updatedStoreStaff) =>
+    setState((s) => {
+      const others = s.staff.filter((st) => !storeStaffIds.has(st.id))
+      return { ...s, staff: [...others, ...updatedStoreStaff] }
+    })
   const setShiftTypes = (shiftTypes) => setState((s) => ({ ...s, shiftTypes }))
+  const setStores = (newStores) => setState((s) => ({ ...s, stores: newStores }))
   const setDayAssignments = (dateKey, entries) =>
     setState((s) => {
       const assignments = { ...s.assignments }
-      if (entries.length === 0) {
+      const existing = assignments[dateKey] || []
+      const others = existing.filter((e) => !storeStaffIds.has(e.staffId))
+      const merged = [...others, ...entries]
+      if (merged.length === 0) {
         delete assignments[dateKey]
       } else {
-        assignments[dateKey] = entries
+        assignments[dateKey] = merged
       }
       return { ...s, assignments }
     })
@@ -174,6 +221,18 @@ function ShiftManagerApp({ user }) {
     }
   }
 
+  const cancelMyTimeOff = async (requestId) => {
+    setTimeOffCancellingId(requestId)
+    try {
+      await cancelTimeOffRequest(ENDPOINT_URL, ACCESS_TOKEN, { requestId })
+      setTimeOffRequests((list) => list.map((r) => (r.id === requestId ? { ...r, status: 'cancelled' } : r)))
+    } catch (e) {
+      window.alert(e.message || '取り消しに失敗しました')
+    } finally {
+      setTimeOffCancellingId(null)
+    }
+  }
+
   const moveMonth = (delta) => {
     setView((v) => addMonths(v.year, v.month, delta))
     setSelectedDate(null)
@@ -186,8 +245,8 @@ function ShiftManagerApp({ user }) {
 
   const exportCsv = () => {
     const csv = buildCsv(
-      state.assignments,
-      state.staff,
+      storeAssignments,
+      storeStaff,
       state.shiftTypes,
       monthPrefix,
       daysInMonth(view.year, view.month),
@@ -246,6 +305,18 @@ function ShiftManagerApp({ user }) {
           <button onClick={() => moveMonth(1)}>翌月 ▶</button>
           <button className="ghost" onClick={goToday}>今日</button>
         </div>
+        {isHeadOffice && stores.length > 0 && (
+          <select
+            className="store-switch"
+            value={selectedStoreId}
+            onChange={(e) => setSelectedStoreId(e.target.value)}
+            title="表示する店舗"
+          >
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>{store.name}</option>
+            ))}
+          </select>
+        )}
         {isAdmin && (
           <span className={`save-status save-status-${saveStatus}`}>
             {SAVE_STATUS_LABEL[saveStatus] || ''}
@@ -260,8 +331,8 @@ function ShiftManagerApp({ user }) {
           <Calendar
             year={view.year}
             month={view.month}
-            assignments={state.assignments}
-            staff={state.staff}
+            assignments={storeAssignments}
+            staff={storeStaff}
             shiftTypes={state.shiftTypes}
             selectedDate={selectedDate}
             onSelectDate={(key) => setSelectedDate((cur) => (cur === key ? null : key))}
@@ -271,8 +342,8 @@ function ShiftManagerApp({ user }) {
           {selectedDate && (
             <DayEditor
               dateKey={selectedDate}
-              assignments={state.assignments}
-              staff={state.staff}
+              assignments={storeAssignments}
+              staff={storeStaff}
               shiftTypes={state.shiftTypes}
               onChange={setDayAssignments}
               onClose={() => setSelectedDate(null)}
@@ -285,21 +356,22 @@ function ShiftManagerApp({ user }) {
         <aside className="sidebar">
           {isAdmin ? (
             <>
-              <StaffPanel staff={state.staff} onChange={setStaff} />
+              {isHeadOffice && <StorePanel stores={stores} onChange={setStores} />}
+              <StaffPanel staff={storeStaff} onChange={setStaff} stores={stores} defaultStoreId={effectiveStoreId} />
               <ShiftTypePanel shiftTypes={state.shiftTypes} onChange={setShiftTypes} />
               <ShiftRequestsPanel
                 monthPrefix={monthPrefix}
                 onLoaded={(requests) => setRequestsByDate(groupRequestsByDate(requests))}
               />
               <TimeOffAdminPanel
-                timeOffRequests={timeOffRequests}
-                staff={state.staff}
+                timeOffRequests={storeTimeOffRequests}
+                staff={storeStaff}
                 onDecide={decideTimeOff}
                 busyId={timeOffBusyId}
               />
               <SummaryPanel
-                assignments={state.assignments}
-                staff={state.staff}
+                assignments={storeAssignments}
+                staff={storeStaff}
                 shiftTypes={state.shiftTypes}
                 monthPrefix={monthPrefix}
               />
@@ -309,11 +381,13 @@ function ShiftManagerApp({ user }) {
               <TimeOffStaffPanel
                 myRequests={myTimeOffRequests}
                 onSubmit={submitMyTimeOff}
+                onCancel={cancelMyTimeOff}
                 submitting={timeOffSubmitting}
+                cancellingId={timeOffCancellingId}
               />
               <SummaryPanel
-                assignments={state.assignments}
-                staff={state.staff}
+                assignments={storeAssignments}
+                staff={storeStaff}
                 shiftTypes={state.shiftTypes}
                 monthPrefix={monthPrefix}
               />
