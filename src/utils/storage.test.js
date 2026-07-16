@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_SHIFT_TYPES, fetchState, normalizeState, saveState } from './storage.js'
+import { DEFAULT_SHIFT_TYPES, fetchState, findStaffByEmail, normalizeState, normalizeStaffMember, saveState } from './storage.js'
 
 describe('normalizeState', () => {
-  it('正しい形はそのまま返す', () => {
+  it('スタッフに email/role のデフォルトを補いつつ形を維持する', () => {
     const raw = { staff: [{ id: 'a', name: '田中' }], shiftTypes: [{ id: 't' }], assignments: { '2026-07-01': [] } }
-    expect(normalizeState(raw)).toEqual(raw)
+    const result = normalizeState(raw)
+    expect(result.staff).toEqual([{ id: 'a', name: '田中', color: '', email: '', role: 'staff' }])
+    expect(result.shiftTypes).toEqual(raw.shiftTypes)
+    expect(result.assignments).toEqual(raw.assignments)
   })
 
   it('staff が配列でなければ空配列にする', () => {
@@ -23,6 +26,38 @@ describe('normalizeState', () => {
     const result = normalizeState(null)
     expect(result.staff).toEqual([])
     expect(result.shiftTypes).toBe(DEFAULT_SHIFT_TYPES)
+  })
+})
+
+describe('normalizeStaffMember', () => {
+  it('role が admin 以外なら staff にする', () => {
+    expect(normalizeStaffMember({ id: 'a', role: 'manager' }).role).toBe('staff')
+    expect(normalizeStaffMember({ id: 'a', role: undefined }).role).toBe('staff')
+    expect(normalizeStaffMember({ id: 'a', role: 'admin' }).role).toBe('admin')
+  })
+
+  it('email を trim・小文字化する', () => {
+    expect(normalizeStaffMember({ id: 'a', email: '  User@Example.com  ' }).email).toBe('user@example.com')
+  })
+})
+
+describe('findStaffByEmail', () => {
+  const staff = [
+    { id: 'a', email: 'tanaka@example.com', role: 'admin' },
+    { id: 'b', email: 'sato@example.com', role: 'staff' },
+  ]
+
+  it('大文字小文字を無視して一致するスタッフを返す', () => {
+    expect(findStaffByEmail(staff, 'Tanaka@Example.com').id).toBe('a')
+  })
+
+  it('一致しなければ null', () => {
+    expect(findStaffByEmail(staff, 'unknown@example.com')).toBeNull()
+  })
+
+  it('email が空なら null', () => {
+    expect(findStaffByEmail(staff, '')).toBeNull()
+    expect(findStaffByEmail(staff, undefined)).toBeNull()
   })
 })
 
@@ -62,6 +97,7 @@ describe('fetchState / saveState', () => {
     expect(options.headers['Content-Type']).toMatch(/text\/plain/)
     const body = JSON.parse(options.body)
     expect(body.token).toBe('tok')
+    expect(body.action).toBe('saveState')
     expect(body.staff).toEqual([{ id: 'a' }])
   })
 

@@ -5,14 +5,18 @@ import StaffPanel from './components/StaffPanel.jsx'
 import ShiftTypePanel from './components/ShiftTypePanel.jsx'
 import SummaryPanel from './components/SummaryPanel.jsx'
 import ShiftRequestsPanel from './components/ShiftRequestsPanel.jsx'
+import TimeOffAdminPanel from './components/TimeOffAdminPanel.jsx'
+import TimeOffStaffPanel from './components/TimeOffStaffPanel.jsx'
 import LoginGate from './components/LoginGate.jsx'
 import { addMonths, daysInMonth, monthKey } from './utils/date.js'
 import { buildCsv } from './utils/stats.js'
-import { fetchState, saveState } from './utils/storage.js'
+import { fetchState, findStaffByEmail, saveState } from './utils/storage.js'
 import { groupRequestsByDate } from './utils/requests.js'
+import { fetchTimeOffRequests, groupApprovedByDate, submitTimeOffRequest, updateTimeOffRequest } from './utils/timeOff.js'
 
 const ENDPOINT_URL = import.meta.env.VITE_GAS_ENDPOINT_URL
 const ACCESS_TOKEN = import.meta.env.VITE_GAS_ACCESS_TOKEN
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 const SAVE_DEBOUNCE_MS = 800
 
 const SAVE_STATUS_LABEL = {
@@ -26,8 +30,8 @@ export default function App() {
 
   return (
     <LoginGate>
-      {configured ? (
-        <ShiftManagerApp />
+      {(user) => (configured ? (
+        <ShiftManagerApp user={user} />
       ) : (
         <div className="app">
           <div className="setup-required">
@@ -39,17 +43,20 @@ export default function App() {
             </p>
           </div>
         </div>
-      )}
+      ))}
     </LoginGate>
   )
 }
 
-function ShiftManagerApp() {
+function ShiftManagerApp({ user }) {
   const [state, setState] = useState(null) // null = 読み込み中
+  const [timeOffRequests, setTimeOffRequests] = useState([])
   const [loadError, setLoadError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved | error
   const [saveErrorMessage, setSaveErrorMessage] = useState('')
+  const [timeOffBusyId, setTimeOffBusyId] = useState(null)
+  const [timeOffSubmitting, setTimeOffSubmitting] = useState(false)
   const isFirstStateChange = useRef(true)
   const saveGeneration = useRef(0)
 
@@ -64,9 +71,14 @@ function ShiftManagerApp() {
     setState(null)
     setLoadError('')
     isFirstStateChange.current = true
-    fetchState(ENDPOINT_URL, ACCESS_TOKEN)
-      .then((s) => {
-        if (!cancelled) setState(s)
+    Promise.all([
+      fetchState(ENDPOINT_URL, ACCESS_TOKEN),
+      fetchTimeOffRequests(ENDPOINT_URL, ACCESS_TOKEN).catch(() => []),
+    ])
+      .then(([s, timeOff]) => {
+        if (cancelled) return
+        setState(s)
+        setTimeOffRequests(timeOff)
       })
       .catch((e) => {
         if (!cancelled) setLoadError(e.message || '読み込みに失敗しました')
@@ -108,6 +120,19 @@ function ShiftManagerApp() {
     setRequestsByDate({})
   }, [monthPrefix])
 
+  // ---- 役割判定 ----
+  // Googleログインが未設定の場合は誰でも管理者相当として使える（開発・検証向け）。
+  const loginConfigured = Boolean(GOOGLE_CLIENT_ID)
+  const currentStaff = loginConfigured && state ? findStaffByEmail(state.staff, user?.email) : null
+  const role = !loginConfigured ? 'admin' : (currentStaff ? currentStaff.role : null)
+  const isAdmin = role === 'admin'
+
+  const approvedTimeOffByDate = useMemo(() => groupApprovedByDate(timeOffRequests), [timeOffRequests])
+  const myTimeOffRequests = useMemo(
+    () => (currentStaff ? timeOffRequests.filter((r) => r.staffId === currentStaff.id) : []),
+    [timeOffRequests, currentStaff],
+  )
+
   const setStaff = (staff) => setState((s) => ({ ...s, staff }))
   const setShiftTypes = (shiftTypes) => setState((s) => ({ ...s, shiftTypes }))
   const setDayAssignments = (dateKey, entries) =>
@@ -120,6 +145,34 @@ function ShiftManagerApp() {
       }
       return { ...s, assignments }
     })
+
+  const decideTimeOff = async (requestId, status) => {
+    setTimeOffBusyId(requestId)
+    try {
+      await updateTimeOffRequest(ENDPOINT_URL, ACCESS_TOKEN, { requestId, status })
+      setTimeOffRequests((list) => list.map((r) => (r.id === requestId ? { ...r, status } : r)))
+    } catch (e) {
+      window.alert(e.message || '処理に失敗しました')
+    } finally {
+      setTimeOffBusyId(null)
+    }
+  }
+
+  const submitMyTimeOff = async ({ date, reason }) => {
+    if (!currentStaff) return
+    setTimeOffSubmitting(true)
+    try {
+      const result = await submitTimeOffRequest(ENDPOINT_URL, ACCESS_TOKEN, { staffId: currentStaff.id, date, reason })
+      setTimeOffRequests((list) => [
+        ...list,
+        { id: result.id, staffId: currentStaff.id, date, reason, status: 'pending', requestedAt: null, processedAt: null },
+      ])
+    } catch (e) {
+      window.alert(e.message || '申請に失敗しました')
+    } finally {
+      setTimeOffSubmitting(false)
+    }
+  }
 
   const moveMonth = (delta) => {
     setView((v) => addMonths(v.year, v.month, delta))
@@ -170,20 +223,35 @@ function ShiftManagerApp() {
     )
   }
 
+  if (loginConfigured && !currentStaff) {
+    return (
+      <div className="app">
+        <div className="setup-required">
+          <h1>シフト管理</h1>
+          <p className="error">
+            「{user?.email}」はスタッフとして登録されていません。管理者にスタッフ登録を依頼してください。
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <header className="app-header">
-        <h1>シフト管理</h1>
+        <h1>シフト管理{!isAdmin && <span className="role-badge">バイト用</span>}</h1>
         <div className="month-nav">
           <button onClick={() => moveMonth(-1)}>◀ 前月</button>
           <span className="month-label">{view.year}年{view.month}月</span>
           <button onClick={() => moveMonth(1)}>翌月 ▶</button>
           <button className="ghost" onClick={goToday}>今日</button>
         </div>
-        <span className={`save-status save-status-${saveStatus}`}>
-          {SAVE_STATUS_LABEL[saveStatus] || ''}
-          {saveStatus === 'error' && saveErrorMessage && `（${saveErrorMessage}）`}
-        </span>
+        {isAdmin && (
+          <span className={`save-status save-status-${saveStatus}`}>
+            {SAVE_STATUS_LABEL[saveStatus] || ''}
+            {saveStatus === 'error' && saveErrorMessage && `（${saveErrorMessage}）`}
+          </span>
+        )}
         <button className="primary" onClick={exportCsv}>CSV出力</button>
       </header>
 
@@ -198,6 +266,7 @@ function ShiftManagerApp() {
             selectedDate={selectedDate}
             onSelectDate={(key) => setSelectedDate((cur) => (cur === key ? null : key))}
             requestsByDate={requestsByDate}
+            approvedTimeOffByDate={approvedTimeOffByDate}
           />
           {selectedDate && (
             <DayEditor
@@ -208,27 +277,55 @@ function ShiftManagerApp() {
               onChange={setDayAssignments}
               onClose={() => setSelectedDate(null)}
               requests={requestsByDate[selectedDate] || []}
+              readOnly={!isAdmin}
+              approvedTimeOffStaffIds={approvedTimeOffByDate[selectedDate] || []}
             />
           )}
         </div>
         <aside className="sidebar">
-          <StaffPanel staff={state.staff} onChange={setStaff} />
-          <ShiftTypePanel shiftTypes={state.shiftTypes} onChange={setShiftTypes} />
-          <ShiftRequestsPanel
-            monthPrefix={monthPrefix}
-            onLoaded={(requests) => setRequestsByDate(groupRequestsByDate(requests))}
-          />
-          <SummaryPanel
-            assignments={state.assignments}
-            staff={state.staff}
-            shiftTypes={state.shiftTypes}
-            monthPrefix={monthPrefix}
-          />
+          {isAdmin ? (
+            <>
+              <StaffPanel staff={state.staff} onChange={setStaff} />
+              <ShiftTypePanel shiftTypes={state.shiftTypes} onChange={setShiftTypes} />
+              <ShiftRequestsPanel
+                monthPrefix={monthPrefix}
+                onLoaded={(requests) => setRequestsByDate(groupRequestsByDate(requests))}
+              />
+              <TimeOffAdminPanel
+                timeOffRequests={timeOffRequests}
+                staff={state.staff}
+                onDecide={decideTimeOff}
+                busyId={timeOffBusyId}
+              />
+              <SummaryPanel
+                assignments={state.assignments}
+                staff={state.staff}
+                shiftTypes={state.shiftTypes}
+                monthPrefix={monthPrefix}
+              />
+            </>
+          ) : (
+            <>
+              <TimeOffStaffPanel
+                myRequests={myTimeOffRequests}
+                onSubmit={submitMyTimeOff}
+                submitting={timeOffSubmitting}
+              />
+              <SummaryPanel
+                assignments={state.assignments}
+                staff={state.staff}
+                shiftTypes={state.shiftTypes}
+                monthPrefix={monthPrefix}
+              />
+            </>
+          )}
         </aside>
       </main>
 
       <footer className="app-footer">
-        日付をクリックしてシフトを割り当てます。データはスプレッドシートに自動保存されます。
+        {isAdmin
+          ? '日付をクリックしてシフトを割り当てます。データはスプレッドシートに自動保存されます。'
+          : '日付をクリックするとその日のシフトを確認できます（閲覧のみ）。'}
       </footer>
     </div>
   )

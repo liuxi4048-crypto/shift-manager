@@ -85,13 +85,15 @@ export default function LoginGate({ children }) {
     setUser(null)
   }
 
+  const renderChildren = (u) => (typeof children === 'function' ? children(u) : children)
+
   if (!clientId) {
     return (
       <div className="login-gate">
         <p className="empty">
           VITE_GOOGLE_CLIENT_ID が未設定のため、ログインなしで利用できます。
         </p>
-        {children}
+        {renderChildren(null)}
       </div>
     )
   }
@@ -113,7 +115,7 @@ export default function LoginGate({ children }) {
         <span>{user.name} さんとしてログイン中（{user.email}）</span>
         <button className="ghost" onClick={logout}>ログアウト</button>
       </div>
-      {children}
+      {renderChildren(user)}
     </div>
   )
 }

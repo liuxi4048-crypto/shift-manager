@@ -1,8 +1,8 @@
 import { parseDateKey, WEEKDAY_LABELS } from '../utils/date.js'
 
-// 選択した日のシフト割り当てを編集するパネル。
-// スタッフ×シフト種別のトグルで直感的に割り当てる。
-export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onChange, onClose, requests = [] }) {
+// 選択した日のシフト割り当てを編集（または閲覧）するパネル。
+// readOnly の場合はスタッフ×シフト種別のトグルをボタンではなく静的表示にする（バイト向け）。
+export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onChange, onClose, requests = [], readOnly = false, approvedTimeOffStaffIds = [] }) {
   const { year, month, day } = parseDateKey(dateKey)
   const weekday = WEEKDAY_LABELS[new Date(year, month - 1, day).getDay()]
   const entries = assignments[dateKey] || []
@@ -10,6 +10,7 @@ export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onC
   const findEntry = (staffId) => entries.find((e) => e.staffId === staffId)
 
   const toggle = (staffId, shiftTypeId) => {
+    if (readOnly) return
     const current = findEntry(staffId)
     let next
     if (current && current.shiftTypeId === shiftTypeId) {
@@ -23,7 +24,7 @@ export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onC
   return (
     <section className="panel day-editor">
       <div className="day-editor-header">
-        <h2>{month}月{day}日（{weekday}）のシフト</h2>
+        <h2>{month}月{day}日（{weekday}）のシフト{readOnly && <span className="readonly-badge">閲覧のみ</span>}</h2>
         <button className="ghost" onClick={onClose}>閉じる</button>
       </div>
       {requests.length > 0 && (
@@ -53,14 +54,30 @@ export default function DayEditor({ dateKey, assignments, staff, shiftTypes, onC
           <tbody>
             {staff.map((s) => {
               const current = findEntry(s.id)
+              const hasApprovedTimeOff = approvedTimeOffStaffIds.includes(s.id)
               return (
                 <tr key={s.id}>
                   <td className="staff-name">
                     <span className="color-dot" style={{ background: s.color }} />
                     {s.name}
+                    {hasApprovedTimeOff && (
+                      <span className="timeoff-warning" title="この日は希望休が承認されています">休申請済</span>
+                    )}
                   </td>
                   {shiftTypes.map((t) => {
                     const active = current?.shiftTypeId === t.id
+                    if (readOnly) {
+                      return (
+                        <td key={t.id}>
+                          <span
+                            className={`toggle-static${active ? ' active' : ''}`}
+                            style={active ? { background: t.color, borderColor: t.color } : undefined}
+                          >
+                            {active ? '●' : ''}
+                          </span>
+                        </td>
+                      )
+                    }
                     return (
                       <td key={t.id}>
                         <button

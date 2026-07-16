@@ -1,6 +1,6 @@
 import { WEEKDAY_LABELS, getCalendarWeeks, parseDateKey, todayKey } from '../utils/date.js'
 
-export default function Calendar({ year, month, assignments, staff, shiftTypes, selectedDate, onSelectDate, requestsByDate = {} }) {
+export default function Calendar({ year, month, assignments, staff, shiftTypes, selectedDate, onSelectDate, requestsByDate = {}, approvedTimeOffByDate = {} }) {
   const weeks = getCalendarWeeks(year, month)
   const staffById = new Map(staff.map((s) => [s.id, s]))
   const typeById = new Map(shiftTypes.map((t) => [t.id, t]))
@@ -27,11 +27,13 @@ export default function Calendar({ year, month, assignments, staff, shiftTypes, 
             if (di === 0) classes.push('sun')
             if (di === 6) classes.push('sat')
             const requestCount = (requestsByDate[dateKey] || []).length
+            const approvedOffCount = (approvedTimeOffByDate[dateKey] || []).length
             return (
               <button key={di} className={classes.join(' ')} onClick={() => onSelectDate(dateKey)}>
                 <span className="day-number">
                   {day}
                   {requestCount > 0 && <span className="request-badge" title={`シフト希望 ${requestCount}件`}>希{requestCount}</span>}
+                  {approvedOffCount > 0 && <span className="timeoff-badge" title={`承認済み希望休 ${approvedOffCount}件`}>休{approvedOffCount}</span>}
                 </span>
                 <span className="day-entries">
                   {entries.map((e, i) => {

@@ -384,3 +384,152 @@ input {
 .save-status-saving { color: var(--accent); }
 .save-status-saved { color: #27ae60; }
 .save-status-error { color: var(--danger); }
+
+/* 役割表示・読み取り専用 */
+.role-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #7f8c8d;
+  border-radius: 10px;
+  padding: 2px 9px;
+  vertical-align: middle;
+}
+
+.readonly-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: #eef1f4;
+  border-radius: 10px;
+  padding: 2px 9px;
+  vertical-align: middle;
+}
+
+.toggle-static {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: #fff;
+}
+
+.timeoff-warning {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--danger);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+.timeoff-badge {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #8e44ad;
+  border-radius: 8px;
+  padding: 0 5px;
+  vertical-align: middle;
+}
+
+/* スタッフ行（メール・役割） */
+.staff-row {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 4px !important;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.staff-row:last-child { border-bottom: none; }
+
+.staff-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-row-sub {
+  display: flex;
+  gap: 6px;
+  padding-left: 18px;
+}
+
+.staff-email {
+  flex: 1;
+  font-size: 12px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.staff-email:hover, .staff-email:focus { border-color: var(--border); background: #fff; }
+
+.staff-role {
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* 希望休 */
+.timeoff-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeoff-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.timeoff-item.status-approved { border-color: #27ae60; background: #f2fbf5; }
+.timeoff-item.status-rejected { border-color: var(--danger); background: #fdf3f2; opacity: 0.85; }
+
+.timeoff-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timeoff-reason {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.timeoff-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.status-pill {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 2px 9px;
+}
+
+.status-pill.status-pending { background: #fdf2e0; color: #b9770e; }
+.status-pill.status-approved { background: #eafaf1; color: #1e8449; }
+.status-pill.status-rejected { background: #fdedec; color: #c0392b; }

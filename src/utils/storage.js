@@ -25,7 +25,7 @@ export function defaultState() {
 export function normalizeState(raw) {
   if (!raw || typeof raw !== 'object') return defaultState()
   return {
-    staff: Array.isArray(raw.staff) ? raw.staff : [],
+    staff: Array.isArray(raw.staff) ? raw.staff.map(normalizeStaffMember) : [],
     shiftTypes: Array.isArray(raw.shiftTypes) && raw.shiftTypes.length > 0
       ? raw.shiftTypes
       : DEFAULT_SHIFT_TYPES,
@@ -33,6 +33,25 @@ export function normalizeState(raw) {
       ? raw.assignments
       : {},
   }
+}
+
+// role は 'admin'（管理者）または 'staff'（バイト）。未設定時は 'staff' 扱い。
+export function normalizeStaffMember(s) {
+  return {
+    id: s.id,
+    name: s.name || '',
+    color: s.color || '',
+    email: (s.email || '').trim().toLowerCase(),
+    role: s.role === 'admin' ? 'admin' : 'staff',
+  }
+}
+
+// ログイン中のメールアドレスから、対応するスタッフ（役割込み）を探す。
+// email が空、もしくは一致するスタッフがいない場合は null。
+export function findStaffByEmail(staff, email) {
+  if (!email) return null
+  const target = email.trim().toLowerCase()
+  return staff.find((s) => s.email && s.email === target) || null
 }
 
 export async function fetchState(endpointUrl, token) {
@@ -52,7 +71,7 @@ export async function saveState(endpointUrl, token, state) {
   const res = await fetch(endpointUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ token, ...state }),
+    body: JSON.stringify({ token, action: 'saveState', ...state }),
   })
   if (!res.ok) throw new Error(`保存に失敗しました（${res.status}）`)
   const data = await res.json()
