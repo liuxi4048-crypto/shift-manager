@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ツクルキッズ シフト管理</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="シフト管理">
+<meta name="theme-color" content="#185FA5">
+<script>
+(function(){
+  var base=location.href.split('?')[0];
+  var l=document.createElement('link');l.rel='manifest';l.href=base+'?path=manifest';document.head.appendChild(l);
+  var i=document.createElement('link');i.rel='apple-touch-icon';i.href=base+'?path=icon192';document.head.appendChild(i);
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register(base+'?path=sw',{scope:base}).catch(function(){});});}
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js"></script>
+<style>
+:root{
+  --acc:#185FA5; --acc-l:#E6F1FB;
+  --sac:#3B6D11; --sac-l:#EAF3DE;
+  --sur:#fff; --bg:#f4f6f9; --bdr:#e4e8ee;
+  --txt:#1a2332; --tx2:#64748b;
+  --red:#dc2626; --amb:#d97706; --grn:#16a34a;
+  --rad:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;font-size:14px}
+
+/* LOGIN */
+#login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg)}
+.login-box{background:var(--sur);border-radius:16px;padding:36px 28px;width:100%;max-width:380px;border:1px solid var(--bdr)}
+.login-logo{text-align:center;margin-bottom:24px}
+#login-wrap{padding:16px}
+.login-box{border-radius:16px;padding:32px 24px}
+@media(max-width:400px){.login-box{padding:28px 18px}}
+.login-logo-icon{font-size:32px;margin-bottom:8px}
+.login-logo-title{font-size:18px;font-weight:700}
+.login-logo-sub{font-size:13px;color:var(--tx2);margin-top:2px}
+
+/* APP */
+#app-wrap{display:none}
+.header{background:var(--acc);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.header.s{background:var(--sac)}
+.h-left{display:flex;align-items:center;gap:10px}
+.logo{font-size:15px;font-weight:700;color:#fff}
+.logo-sub{font-size:11px;color:rgba(255,255,255,.65);font-weight:400;margin-left:6px}
+.role-pill{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.5px;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.35)}
+.h-right{display:flex;align-items:center;gap:8px}
+.avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1.5px solid rgba(255,255,255,.4)}
+.uname{font-size:12px;color:#fff;font-weight:500}
+.logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:3px 9px;font-size:11px;cursor:pointer;font-family:inherit}
+.deadline-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.35);cursor:pointer;white-space:nowrap}
+.deadline-pill.urgent{background:#dc2626;border-color:#7f1d1d;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+@media(max-width:600px){.deadline-pill{font-size:9px;padding:2px 6px}}
+.rules-section{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rad);padding:16px;margin-bottom:14px}
+.rules-section h3{font-size:14px;font-weight:700;color:var(--acc);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--acc-l);display:flex;align-items:center;gap:6px}
+.rules-section h4{font-size:12px;font-weight:700;color:var(--txt);margin-top:12px;margin-bottom:6px}
+.rules-section p, .rules-section li{font-size:12px;line-height:1.7;color:var(--txt)}
+.rules-section ul, .rules-section ol{padding-left:20px;margin-bottom:10px}
+.rules-section li{margin-bottom:4px}
+.rules-flow{display:flex;flex-direction:column;gap:8px;margin:12px 0}
+.rules-flow-step{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--acc-l);border-left:3px solid var(--acc);border-radius:6px;font-size:12px}
+.rules-flow-day{font-weight:700;color:var(--acc);min-width:70px}
+.rules-warning{background:#fef3c7;border-left:3px solid var(--amb);padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;color:#78350f}
+.rules-info{background:#dbeafe;border-left:3px solid #3b82f6;padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;color:#1e3a8a}
+.rules-cat-table{width:100%;font-size:12px;margin-top:8px}
+.rules-cat-table td{padding:6px 10px}
+.cat-chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;color:#fff}
+
+/* ヘルプ募集カード */
+.help-card{background:var(--sur);border:1px solid var(--bdr);border-left:4px solid var(--amb);border-radius:var(--rad);padding:14px 16px;margin-bottom:12px;transition:box-shadow .15s}
+.help-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.help-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.help-date{font-size:16px;font-weight:700;color:var(--txt);line-height:1.3}
+.help-day{font-size:12px;color:var(--tx2);margin-top:2px}
+.help-urgency{background:#fef3c7;color:#78350f;font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;white-space:nowrap}
+.help-urgency.critical{background:#fee2e2;color:#991b1b}
+.help-info{display:grid;gap:6px;margin-bottom:10px}
+.help-info-row{display:flex;align-items:center;gap:8px;font-size:12px}
+.help-info-icon{font-size:14px;flex-shrink:0}
+.help-partner{background:var(--bg);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:10px;border:1px dashed var(--bdr)}
+.help-partner-label{font-size:10px;color:var(--tx2);font-weight:600;margin-bottom:2px}
+.help-btn-wrap{display:flex;justify-content:flex-end}
+.help-empty{text-align:center;padding:60px 20px;color:var(--tx2)}
+.help-empty-icon{font-size:40px;margin-bottom:10px;opacity:.5}
+.help-empty-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.help-empty-sub{font-size:12px}
+
+/* NAV */
+.nav{background:var(--sur);border-bottom:1px solid var(--bdr);padding:0 16px;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:12px 12px;font-size:12px;font-weight:500;color:var(--tx2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:5px}
+.nav-btn:hover,.nav-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+.nav.s .nav-btn:hover,.nav.s .nav-btn.active{color:var(--sac);border-bottom-color:var(--sac)}
+.nav-icon{font-size:14px;line-height:1}
+.nav-label{white-space:nowrap}
+@media(max-width:600px){
+  .nav-icon{font-size:20px;line-height:1;display:block}
+  .nav-label{font-size:10px}
+}
+.tbadge{background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0 3px}
+
+/* MAIN */
+.main{max-width:1100px;margin:0 auto;padding:16px}
+.page{display:none}
+.page.active{display:block}
+
+/* CARD */
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rad);padding:16px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:700;margin-bottom:14px;color:var(--txt);display:flex;align-items:center;gap:6px}
+.ph{margin-bottom:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pt{font-size:17px;font-weight:700}
+.ps{font-size:12px;color:var(--tx2);margin-top:2px}
+
+/* CALENDAR */
+.cal-wrap{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rad);padding:14px;margin-bottom:14px}
+.fc{font-size:12px}
+.fc-toolbar-title{font-size:14px !important;font-weight:700 !important}
+.fc-button-primary{background:var(--acc) !important;border-color:var(--acc) !important;font-size:11px !important}
+.app-wrap.s .fc-button-primary{background:var(--sac) !important;border-color:var(--sac) !important}
+.fc-day-today{background:var(--acc-l) !important}
+.ev-box{padding:1px 4px;line-height:1.4}
+.ev-cat{font-size:10px;font-weight:700;background:rgba(0,0,0,.15);border-radius:3px;padding:0 3px;margin-right:2px}
+.fc-list-event-title{font-size:13px}
+.fc-list-day-cushion{background:var(--bg) !important}
+.fc-list-day-text,.fc-list-day-side-text{font-size:13px;font-weight:600}
+.fc-list-empty{font-size:13px;color:var(--tx2);padding:20px}
+
+/* FILTER */
+.filter-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.fl{font-size:12px;color:var(--tx2);font-weight:500}
+.chip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid var(--bdr);background:var(--sur);color:var(--tx2);font-family:inherit;transition:all .15s;white-space:nowrap}
+.chip:hover,.chip.on{border-color:var(--acc);color:var(--acc);background:var(--acc-l)}
+.subnav-btn{padding:8px 14px;font-size:12px;border-bottom:2px solid transparent}
+.subnav-btn.on{border-bottom-color:var(--acc);font-weight:700}
+
+/* FORMS */
+.fg{margin-bottom:12px}
+.fl2{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--txt)}
+.fi,.fs,.ft{width:100%;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:16px;font-family:inherit;background:var(--sur);color:var(--txt);transition:border-color .15s}
+.fi:focus,.fs:focus,.ft:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px rgba(24,95,165,.1)}
+.ft{resize:vertical;min-height:72px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:opacity .15s,transform .1s}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.bp{background:var(--acc);color:#fff}
+.bs{background:var(--sac);color:#fff}
+.bd{background:var(--red);color:#fff}
+.bg{background:var(--bg);color:var(--txt);border:1px solid var(--bdr)}
+.bsc{background:var(--grn);color:#fff}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--bg);padding:8px 10px;text-align:left;font-weight:600;color:var(--tx2);border-bottom:1px solid var(--bdr);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--bdr);color:var(--txt)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.er td{text-align:center;color:var(--tx2);padding:18px}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.bp2{background:#fef3c7;color:#92400e}
+.ba{background:#dcfce7;color:#166534}
+.br2{background:#fee2e2;color:#991b1b}
+
+/* NOTICE */
+.notice{padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;border-left:3px solid}
+.ni{background:#dbeafe;color:#1e3a8a;border-color:#3b82f6}
+.nw{background:#fef3c7;color:#78350f;border-color:var(--amb)}
+.ns{background:#dcfce7;color:#14532d;border-color:var(--grn)}
+
+/* STATS */
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.sc{background:var(--bg);border-radius:8px;padding:12px;text-align:center}
+.sn{font-size:22px;font-weight:700;color:var(--acc)}
+.sl{font-size:11px;color:var(--tx2);margin-top:2px}
+
+/* HOURS BAR */
+.hg{display:grid;gap:7px}
+.hr{display:flex;align-items:center;gap:7px}
+.hn{width:76px;font-size:11px;text-align:right;color:var(--tx2);flex-shrink:0}
+.ho{flex:1;background:var(--bg);border-radius:4px;height:20px;position:relative;overflow:hidden}
+.hi{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:6px;font-size:11px;font-weight:500;color:#fff}
+.hv{font-size:11px;color:var(--tx2);width:44px;flex-shrink:0;text-align:right}
+
+/* MY SHIFT BANNER */
+.msb{background:var(--sac);color:#fff;border-radius:var(--rad);padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.msn{font-size:15px;font-weight:700}
+.mss{font-size:11px;opacity:.8;margin-top:2px}
+.msc .num{font-size:26px;font-weight:700}
+.msc .lbl{font-size:11px;opacity:.8}
+
+/* ACTION BAR */
+.ab{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:800;padding:16px}
+.modal{background:var(--sur);border-radius:var(--rad);padding:22px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:16px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+/* TOAST */
+#toast-wrap{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:9999}
+.toast{min-width:220px;padding:11px 14px;border-radius:10px;font-size:12px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18);animation:tin .2s ease;display:flex;align-items:center;gap:7px}
+.tok{background:#14532d;color:#fff}
+.terr{background:#7f1d1d;color:#fff}
+@keyframes tin{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9000;gap:10px}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--bdr);border-top-color:var(--acc);animation:sp .65s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lt{font-size:12px;color:var(--tx2)}
+
+/* SWAP BOARD */
+.swap-me{background:#eff6ff}
+.swap-in{background:#f0fdf4}
+
+/* RESPONSIVE */
+/* 次のシフトカード */
+.next-shift-card{background:linear-gradient(135deg,#185FA5 0%,#3B6D11 100%);color:#fff;border-radius:var(--rad);padding:18px 20px;margin-bottom:14px;box-shadow:0 4px 16px rgba(24,95,165,.25)}
+.next-shift-label{font-size:12px;font-weight:600;opacity:.85;margin-bottom:8px}
+.next-shift-info{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.next-shift-date{font-size:20px;font-weight:700;line-height:1.3}
+.next-shift-day{font-size:13px;opacity:.85;margin-top:2px}
+.next-shift-time{font-size:14px;font-weight:600;background:rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.3);display:inline-block;margin-top:6px}
+.next-shift-area{font-size:11px;opacity:.85;margin-top:4px}
+.next-shift-countdown{text-align:right}
+.next-shift-days{font-size:32px;font-weight:700;line-height:1}
+.next-shift-days-label{font-size:11px;opacity:.85;margin-top:2px}
+.next-shift-today{background:rgba(255,255,255,.25);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;display:inline-block;border:2px solid rgba(255,255,255,.5)}
+.next-shift-empty{font-size:14px;opacity:.85;text-align:center;padding:10px 0}
+
+/* ボトムナビ用スペース */
+body.has-bottom-nav{padding-bottom:66px}
+
+/* トースト(スマホ用に上部から出現) */
+.toast-top{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;min-width:260px;max-width:90vw;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:0 6px 24px rgba(0,0,0,.2);animation:tin-top .25s ease}
+@keyframes tin-top{from{transform:translate(-50%,-20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+@media(max-width:600px){
+  html,body{font-size:13px}
+  .logo-sub{display:none}
+  .main{padding:10px 10px 20px}
+  .card{padding:12px}
+  .pt{font-size:15px}
+
+  /* ボトムナビ化 */
+  .nav{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    top:auto;
+    z-index:100;
+    background:var(--sur);
+    border-top:1px solid var(--bdr);
+    border-bottom:none;
+    padding:0 4px;
+    justify-content:space-around;
+    box-shadow:0 -2px 8px rgba(0,0,0,.06)
+  }
+  .nav-btn{
+    padding:8px 4px 6px;
+    font-size:10px;
+    font-weight:500;
+    border-bottom:none;
+    border-top:2px solid transparent;
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    white-space:nowrap;
+    text-align:center
+  }
+  .nav-btn.active{border-top-color:var(--acc);border-bottom-color:transparent}
+  body{padding-bottom:60px}
+
+  /* ボタンを親指で押しやすいサイズに */
+  .btn{padding:10px 14px;font-size:12px;min-height:38px}
+  .btn-sm{padding:6px 10px;font-size:11px;min-height:auto}
+
+  /* 次のシフトカードのスマホ調整 */
+  .next-shift-card{padding:14px 16px}
+  .next-shift-date{font-size:18px}
+  .next-shift-days{font-size:26px}
+
+  .g2{grid-template-columns:1fr}
+  th,td{padding:6px 7px;font-size:11px}
+  .sg{grid-template-columns:repeat(2,1fr)}
+
+  /* トーストをスマホでは上部から */
+  #toast-wrap{top:16px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);flex-direction:column;align-items:center}
+  .toast{animation:tin-top .25s ease}
+  @keyframes tin-top-mob{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+}
+@media(max-width:360px){
+  .nav-btn{padding:9px 6px;font-size:10px}
+}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- ========== ログイン ========== -->
+<div id="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">📅</div>
+      <div class="login-logo-title">ツクルキッズ</div>
+      <div class="login-logo-sub">シフト管理システム</div>
+    </div>
+    <div class="fg">
+      <label class="fl2">スタッフ名</label>
+      <select class="fs" id="ln">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl2">パスワード</label>
+      <div style="position:relative">
+        <input type="password" class="fi" id="lp" placeholder="パスワードを入力"
+          onkeydown="if(event.key==='Enter')doLogin()"
+          style="padding-right:44px">
+        <button type="button" onclick="togglePw()"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--tx2);font-size:16px;padding:4px"
+          id="pw-eye">👁</button>
+      </div>
+    </div>
+    <div id="lerr" style="font-size:12px;color:var(--red);margin-bottom:10px;display:none"></div>
+    <button class="btn bp" style="width:100%;justify-content:center;padding:14px;font-size:15px" id="lbtn" onclick="doLogin()">ログイン</button>
+  </div>
+</div>
+
+<!-- ========== アプリ ========== -->
+<div id="app-wrap">
+
+<header class="header" id="hdr">
+  <div class="h-left">
+    <div class="logo">ツクルキッズ<span class="logo-sub">シフト管理</span></div>
+    <span class="role-pill" id="rpill">ADMIN</span>
+  </div>
+  <div class="h-right">
+    <span class="deadline-pill hidden" id="deadline-pill" onclick="go('rules',null)"></span>
+    <div class="avatar" id="av">?</div>
+    <span class="uname" id="un">—</span>
+    <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+  </div>
+</header>
+
+<nav class="nav" id="nav">
+  <button class="nav-btn active" onclick="go('shift',this)"><span class="nav-icon">📅</span><span class="nav-label">シフト</span></button>
+  <button class="nav-btn" id="t-my" onclick="go('myshift',this)"><span class="nav-icon">🏠</span><span class="nav-label">マイ</span></button>
+  <button class="nav-btn" id="t-swap" onclick="go('swap',this)"><span class="nav-icon">🔄</span><span class="nav-label">調整<span class="tbadge hidden" id="sb">0</span></span></button>
+  <button class="nav-btn" id="t-help" onclick="go('help',this)"><span class="nav-icon">🙋</span><span class="nav-label">ヘルプ<span class="tbadge hidden" id="hb">0</span></span></button>
+  <button class="nav-btn hidden" id="t-dash" onclick="go('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">ダッシュ<span class="tbadge hidden" id="db">0</span></span></button>
+  <button class="nav-btn hidden" id="t-admin" onclick="go('admin',this)"><span class="nav-icon">⚙️</span><span class="nav-label">管理</span></button>
+  <button class="nav-btn" onclick="go('rules',this)"><span class="nav-icon">📖</span><span class="nav-label">使い方</span></button>
+</nav>
+
+<main class="main">
+
+<!-- シフト確認 -->
+<section class="page active" id="p-shift">
+  <div class="ph"><div><div class="pt">シフト確認</div><div class="ps">全スタッフのシフト</div></div></div>
+  <div class="filter-bar" style="justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span class="fl">カテゴリ:</span>
+      <button class="chip" onclick="fCat(this,'①')">① 15:30〜19:00</button>
+      <button class="chip" onclick="fCat(this,'②')">② 16:00〜19:00</button>
+      <button class="chip" onclick="fCat(this,'③')">③ 8:30〜13:30</button>
+      <button class="chip" onclick="fCat(this,'④')">④ 13:30〜18:00</button>
+      <button class="chip" onclick="fCat(this,'⑤')">⑤ 9:00〜18:00</button>
+      <button class="chip" onclick="fReset()">すべて</button>
+    </div>
+    <button class="btn bg btn-sm" onclick="reloadShiftData()" title="最新データを読み込み">🔄 更新</button>
+  </div>
+  <div class="filter-bar" style="margin-top:-6px">
+    <span class="fl">エリア:</span>
+    <button class="chip" id="cn" onclick="fArea(this,'那覇校')">那覇校</button>
+    <button class="chip" id="cu" onclick="fArea(this,'うるま校')">うるま校</button>
+    <button class="chip" onclick="fAreaReset()">すべて</button>
+  </div>
+  <div class="cal-wrap"><div id="cal"></div></div>
+</section>
+
+<!-- マイシフト -->
+<section class="page" id="p-myshift">
+  <!-- 次のシフト大きく表示(ホーム画面) -->
+  <div class="next-shift-card" id="next-shift-card">
+    <div class="next-shift-label">👋 次のシフト</div>
+    <div class="next-shift-info" id="next-shift-info">
+      <div class="next-shift-empty">読み込み中...</div>
+    </div>
+  </div>
+
+  <div class="msb">
+    <div><div class="msn" id="my-name">—</div><div class="mss">今月のシフト</div></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn btn-sm" onclick="reloadMyShiftData()" title="最新データを読み込み" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4)">🔄 更新</button>
+      <div class="msc"><div class="num" id="my-cnt">—</div><div class="lbl">回</div></div>
+      <div class="msc"><div class="num" id="my-hours">—</div><div class="lbl">h</div></div>
+    </div>
+  </div>
+  <div class="cal-wrap"><div id="my-cal"></div></div>
+</section>
+
+<!-- シフト調整(希望休申請・交換依頼・急な代打依頼) -->
+<section class="page" id="p-swap">
+  <div class="ph"><div><div class="pt">シフト調整</div><div class="ps">希望休申請・交換依頼・急な代打依頼</div></div></div>
+  <div id="swn"></div>
+
+  <!-- サブナビ -->
+  <div class="filter-bar" style="margin-bottom:14px;border-bottom:1px solid var(--bdr);padding-bottom:0">
+    <button class="chip subnav-btn on" data-sub="hopeoff" onclick="goSub(this,'hopeoff')">🌴 希望休申請</button>
+    <button class="chip subnav-btn" data-sub="exchange" onclick="goSub(this,'exchange')">🔄 交換依頼</button>
+    <button class="chip subnav-btn" data-sub="urgent" onclick="goSub(this,'urgent')">🆘 急な代打依頼</button>
+  </div>
+
+  <!-- ========== 希望休申請 ========== -->
+  <div class="sub-section" id="sub-hopeoff">
+    <div class="card" id="hopeoff-form-card">
+      <div class="card-title">🌴 希望休を申請する</div>
+      <div class="notice ni" id="hopeoff-deadline-notice"></div>
+      <div class="fg">
+        <label class="fl2">対象日</label>
+        <input type="date" class="fi" id="ho-date">
+      </div>
+      <div class="fg">
+        <label class="fl2">理由(任意)</label>
+        <textarea class="ft" id="ho-reason" placeholder="例:結婚式、学校の行事、家族の予定など"></textarea>
+      </div>
+      <button class="btn bp" onclick="submitHopeOff()">申請する</button>
+    </div>
+    <div class="card">
+      <div class="card-title">自分の希望休申請履歴</div>
+      <div class="tw"><table>
+        <thead><tr><th>対象日</th><th>申請日時</th><th>理由</th><th>状態</th></tr></thead>
+        <tbody id="ho-mine"></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- ========== シフト交換依頼 ========== -->
+  <div class="sub-section" id="sub-exchange" style="display:none">
+    <div class="card" id="swf">
+      <div class="card-title">🔄 シフト交換依頼を全体へ発信する</div>
+      <div id="exchange-deadline-notice"></div>
+      <div class="fg">
+        <label class="fl2">調整したいシフト(複数選択可)</label>
+        <div id="my-shift-checks" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      </div>
+      <div class="fg" id="line-msg-wrap" style="display:none">
+        <label class="fl2">📋 グループLINEへ送る文言(コピーして@Allでメンション)</label>
+        <div style="background:var(--bg);border:1.5px solid var(--bdr);border-radius:8px;padding:12px;font-size:13px;line-height:1.8;white-space:pre-wrap" id="line-msg-text"></div>
+        <button class="btn bg" style="margin-top:8px" onclick="copyLineMsg()">📋 文言をコピー</button>
+        <div style="font-size:11px;color:var(--amb);margin-top:6px;line-height:1.6">
+          ※ 調整依頼を行ったら、グループLINEにて@Allでメンションして上記をコピーして送ってください!
+        </div>
+      </div>
+      <button class="btn bs" onclick="submitSwapNew()" style="margin-top:4px">全体へ交換依頼を発信する</button>
+    </div>
+    <div class="card">
+      <div class="card-title">交換依頼ボード <span style="font-size:11px;font-weight:400;color:var(--tx2)">(全スタッフ閲覧・先着承認可)</span></div>
+      <div class="notice ni" style="margin-bottom:10px">募集中の依頼は「承認する」ボタンで先着1名が確定します</div>
+      <div class="tw"><table><thead><tr><th>日付</th><th>時間帯</th><th>依頼者</th><th>状態</th><th>操作</th></tr></thead><tbody id="sw-board"></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">自分の依頼履歴 <span style="font-size:11px;font-weight:400;color:var(--tx2)">(募集中は取り消せます)</span></div>
+      <div class="tw"><table><thead><tr><th>日付</th><th>時間帯</th><th>状態</th><th>承認者</th><th>操作</th></tr></thead><tbody id="sw-mine"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ========== 急な代打依頼 ========== -->
+  <div class="sub-section" id="sub-urgent" style="display:none">
+    <div class="card" style="border-left:4px solid var(--red)">
+      <div class="card-title" style="color:var(--red)">🆘 急な代打依頼(病欠・急用など)</div>
+      <div class="notice nw" style="margin-bottom:12px">
+        <strong>この機能は、確定後のシフトで急にどうしても入れなくなった時のみ使ってください。</strong><br>
+        理由は全スタッフに公開されます。無責任な依頼を防ぎ、透明性を保つためです。
+      </div>
+      <div class="fg">
+        <label class="fl2">代打を依頼したいシフト(複数選択可)</label>
+        <div id="urgent-shift-checks" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      </div>
+      <div class="fg">
+        <label class="fl2">理由カテゴリ <span style="color:var(--red)">*必須</span></label>
+        <select class="fs" id="ur-category">
+          <option value="">選択してください</option>
+          <option value="病欠">🤒 病欠(体調不良)</option>
+          <option value="急な家族の用事">👨‍👩‍👧 急な家族の用事</option>
+          <option value="学校行事">🎒 学校行事(補講・部活動など)</option>
+          <option value="その他">📝 その他</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl2">補足(任意)</label>
+        <textarea class="ft" id="ur-note" placeholder="詳細があれば入力(全スタッフに公開されます)"></textarea>
+      </div>
+      <button class="btn bd" onclick="submitUrgent()">🆘 急な代打を募集する</button>
+    </div>
+    <div class="card">
+      <div class="card-title">急な代打募集中</div>
+      <div class="tw"><table>
+        <thead><tr><th>日付</th><th>時間帯</th><th>依頼者</th><th>理由</th><th>操作</th></tr></thead>
+        <tbody id="ur-board"></tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ダッシュボード(管理者) -->
+<section class="page" id="p-dashboard">
+  <div class="ph"><div><div class="pt">ダッシュボード</div><div class="ps">承認待ち・勤務時間の確認</div></div></div>
+
+  <!-- 希望休申請一覧(承認/却下) -->
+  <div class="card" id="admin-hopeoff-card" style="border-left:4px solid var(--acc)">
+    <div class="card-title" style="color:var(--acc)">🌴 希望休申請 承認/却下</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">
+      申請中のものを優先的に対応してください。承認/却下時にスタッフへメール通知が送られます。
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>対象日</th><th>スタッフ</th><th>理由</th><th>申請日時</th><th>状態</th><th>操作</th></tr>
+        </thead>
+        <tbody id="admin-hopeoff-body">
+          <tr class="er"><td colspan="6">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 希望休集中警告カード -->
+  <div class="card" id="hopeoff-alert-card" style="display:none;border-left:4px solid var(--amb)">
+    <div class="card-title" style="color:var(--amb)">⚠️ 希望休が集中している日</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">
+      シフト組みが難しくなる可能性があります。事前に対応を検討してください。
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>日付</th><th>曜日</th><th>希望休人数</th><th>スタッフ</th></tr>
+        </thead>
+        <tbody id="hopeoff-alert-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span>スタッフ別 勤務時間</span>
+      <input type="month" class="fi" id="dash-month" style="width:160px;padding:5px 8px;font-size:12px" onchange="loadDashHours()">
+    </div>
+    <div class="hg" id="d-hours"></div>
+  </div>
+</section>
+
+<!-- 管理(管理者) -->
+<section class="page" id="p-admin">
+  <div class="ph">
+    <div>
+      <div class="pt">管理</div>
+      <div class="ps">月別シフト生成・開校日管理・全申請管理・シフト編集</div>
+    </div>
+  </div>
+
+  <div class="ab">
+    <select class="fs" id="admin-month-offset" style="width:auto" onchange="onAdminMonthChange()">
+      <option value="0">今月</option>
+      <option value="1" selected>翌月</option>
+      <option value="2">再来月</option>
+    </select>
+    <button class="btn bp" onclick="adFetch()">開校日を3か月分取得</button>
+    <button class="btn bp" onclick="adGenPreview()">選択月のシフト生成(プレビュー)</button>
+  </div>
+
+  <!-- プレビュー確認カード -->
+  <div class="card" id="preview-card" style="display:none;border:2px solid #d97706">
+    <div class="card-title" style="color:#d97706">
+      🔍 プレビュー確認(まだスタッフには公開されていません)
+    </div>
+    <div id="preview-warnings"></div>
+    <div id="preview-summary" style="margin-bottom:12px;font-size:12px;color:var(--tx2)"></div>
+    <div class="tw" style="max-height:400px;overflow-y:auto">
+      <table>
+        <thead>
+          <tr><th>日付</th><th>曜日</th><th>時間帯</th><th>カテゴリ</th><th>エリア</th><th>スタッフ</th></tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn bsc" onclick="commitPreview()">✓ 本反映してスタッフに公開する</button>
+      <button class="btn bd" onclick="discardPreview()">✗ 破棄する</button>
+      <button class="btn bp" onclick="adGenPreview()">↻ もう一度生成し直す</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">イレギュラー開校日 追加</div>
+    <div class="g2">
+      <div class="fg">
+        <label class="fl2">追加する日付</label>
+        <input type="date" class="fi" id="manual-open-date">
+      </div>
+      <div class="fg">
+        <label class="fl2">イベント名</label>
+        <input type="text" class="fi" id="manual-open-type" placeholder="例:日曜イベント">
+      </div>
+    </div>
+    <button class="btn bp" onclick="addManualOpenDayFromAdmin()">開校日に追加</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span>シフト編集</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select class="fs" id="ef-dow" style="width:auto;padding:4px 8px;font-size:11px" onchange="renderEdit()">
+          <option value="">曜日すべて</option>
+          <option value="日">日</option>
+          <option value="月">月</option>
+          <option value="火">火</option>
+          <option value="水">水</option>
+          <option value="木">木</option>
+          <option value="金">金</option>
+          <option value="土">土</option>
+        </select>
+        <select class="fs" id="ef-area" style="width:auto;padding:4px 8px;font-size:11px" onchange="renderEdit()">
+          <option value="">エリアすべて</option>
+          <option value="那覇校">那覇校</option>
+          <option value="うるま校">うるま校</option>
+        </select>
+      </div>
+    </div>
+    <div id="edit-notice" style="margin-bottom:10px"></div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>曜日</th>
+            <th>時間帯</th>
+            <th>カテゴリ</th>
+            <th>エリア</th>
+            <th>現在</th>
+            <th>変更後</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody id="edit-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn bp" onclick="saveEdits()">変更を一括保存</button>
+      <button class="btn bg" onclick="loadEdit()">リセット</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💴 時給設定</div>
+    <div id="wage-form"><div style="font-size:12px;color:var(--tx2)">読み込み中...</div></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn bp" onclick="saveWages()">時給を保存</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 給与計算(月別人件費)</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <input type="month" class="fi" id="wage-month" style="width:180px">
+      <button class="btn bp" onclick="calcWageResult()">計算する</button>
+    </div>
+    <div id="wage-result"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">シフト交換 全件</div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>申請日</th><th>日付</th><th>時間帯</th><th>申請者</th><th>承認者</th><th>状態</th></tr>
+        </thead>
+        <tbody id="ad-sw"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ヘルプ募集(スタッフ用) -->
+<section class="page" id="p-help">
+  <div class="ph"><div><div class="pt">🙋 ヘルプ募集</div><div class="ps">あなたが入れる不足シフトの一覧</div></div></div>
+  <div class="notice ni" style="margin-bottom:14px">
+    💡 <strong>あなたの授業時間割で入れる</strong>「シフトが足りない日」だけを表示しています。
+    仲間を助けるチャンスです!
+  </div>
+  <div id="help-shortage-list">
+    <div style="text-align:center;padding:40px 20px;color:var(--tx2);font-size:12px">読み込み中...</div>
+  </div>
+</section>
+
+<!-- 使い方・ルール -->
+<section class="page" id="p-rules">
+  <div class="ph"><div><div class="pt">📖 使い方・ルール</div><div class="ps">運用ルール・注意点・システムの使い方</div></div></div>
+
+  <div class="rules-section">
+    <h3>📅 A. 運用フロー</h3>
+    <p>ツクルキッズのシフトは、毎月以下の流れで運用されています。</p>
+    <div class="rules-flow">
+      <div class="rules-flow-step"><span class="rules-flow-day">毎月1日</span><span>翌月のシフト自動公表</span></div>
+      <div class="rules-flow-step"><span class="rules-flow-day">1〜10日</span><span>希望休申請・シフト交換依頼の受付期間</span></div>
+      <div class="rules-flow-step"><span class="rules-flow-day">10日</span><span>希望休申請・シフト交換依頼の締切</span></div>
+      <div class="rules-flow-step"><span class="rules-flow-day">15日</span><span>シフト確定(以降変更不可)</span></div>
+    </div>
+    <div class="rules-info">
+      💡 シフトは毎月1日に翌月分が公表されます。早めに予定を確認しましょう。
+    </div>
+  </div>
+
+  <div class="rules-section">
+    <h3>🌴 B. 希望休申請のルール</h3>
+    <ul>
+      <li><strong>締切:毎月10日まで</strong></li>
+      <li>管理者が承認/却下を判断します</li>
+      <li>締切後の申請はできません</li>
+      <li>承認された希望休は、翌月のシフト自動生成時に反映されます</li>
+    </ul>
+    <div class="rules-warning">
+      ⚠️ 締切間近の申請は承認されない可能性があります。予定が分かった時点で早めに申請しましょう。
+    </div>
+  </div>
+
+  <div class="rules-section">
+    <h3>🔄 C. シフト交換依頼のルール</h3>
+    <ul>
+      <li><strong>全体発信型・先着承認制</strong></li>
+      <li>交換したいシフトを選び、「全体へ調整依頼を発信」ボタンで発信</li>
+      <li>LINE報告テンプレを必ずコピー→グループLINEに投稿</li>
+      <li>他のスタッフが「承認する」ボタンを押すと交換確定</li>
+      <li>15日以降のシフトは変更できません(確定期間)</li>
+    </ul>
+    <div class="rules-warning">
+      ⚠️ 交換依頼を出した後、必ずグループLINEで@Allメンションして報告してください。システムだけでは他のスタッフが気づけません。
+    </div>
+    <div class="rules-info">
+      💡 交換依頼は先着1名です。承認された時点で自動的にシフトが差し替わります。
+    </div>
+  </div>
+
+  <div class="rules-section">
+    <h3>🆘 D. シフトに入れない場合の対応</h3>
+    <h4>📚 授業時間の変更があった場合</h4>
+    <ul>
+      <li>該当日を希望休として申請(10日までに)</li>
+      <li>10日以降の場合はシフト交換依頼</li>
+    </ul>
+    <h4>🎒 学校行事(長期不在・修学旅行など)</h4>
+    <ul>
+      <li>事前に管理者へLINEなどで直接相談</li>
+      <li>希望休申請フォームからも申請</li>
+    </ul>
+    <h4>🤒 急な体調不良・急用</h4>
+    <ul>
+      <li>まず管理者へLINEで連絡</li>
+      <li>その後、シフト交換依頼を発信</li>
+      <li>グループLINEでも@Allメンションで代打を募集</li>
+    </ul>
+  </div>
+
+  <div class="rules-section">
+    <h3>🏫 E. エリア別ルール</h3>
+    <h4>那覇校</h4>
+    <ul>
+      <li>平日:①または②の時間帯</li>
+      <li>土曜:③(午前)3名 + ④(午後)2名</li>
+    </ul>
+    <h4>うるま校</h4>
+    <ul>
+      <li>土曜のみ:③8:30〜13:30に1名固定(タカラさん)</li>
+    </ul>
+    <h4>体験期間(2回体験・3回体験など)</h4>
+    <ul>
+      <li>平日:15:30〜19:00に必ず2名</li>
+      <li>土曜:③8:30〜13:30が3名+③9:00〜13:30が1名+④13:30〜18:00が2名(合計7名体制)</li>
+    </ul>
+  </div>
+
+  <div class="rules-section">
+    <h3>⏰ F. 時間帯(カテゴリ)</h3>
+    <table class="rules-cat-table">
+      <tr><td><span class="cat-chip" style="background:#185FA5">①</span></td><td>15:30〜19:00</td><td>平日・那覇校</td></tr>
+      <tr><td><span class="cat-chip" style="background:#10b981">②</span></td><td>16:00〜19:00</td><td>平日・那覇校</td></tr>
+      <tr><td><span class="cat-chip" style="background:#f59e0b">③</span></td><td>8:30〜13:30</td><td>土曜・那覇校/うるま校</td></tr>
+      <tr><td><span class="cat-chip" style="background:#f59e0b">③</span></td><td>9:00〜13:30</td><td>土曜・体験期間のみ</td></tr>
+      <tr><td><span class="cat-chip" style="background:#ef4444">④</span></td><td>13:30〜18:00</td><td>土曜・那覇校</td></tr>
+    </table>
+  </div>
+
+  <div class="rules-section">
+    <h3>💬 G. 連絡先・困った時の対応</h3>
+    <ul>
+      <li><strong>急な相談:</strong>管理者へLINEで直接連絡</li>
+      <li><strong>システムのバグ・不具合:</strong>管理者へLINEで報告</li>
+      <li><strong>シフト内容の相談:</strong>ダッシュボードから相談 or LINEで管理者へ</li>
+    </ul>
+    <div class="rules-warning">
+      ⚠️ 無断欠勤は絶対にやめましょう。必ず事前に連絡してください。
+    </div>
+  </div>
+
+  <div class="rules-section">
+    <h3>📱 H. システムの使い方</h3>
+    <h4>ログイン</h4>
+    <ol>
+      <li>スタッフ名を選択</li>
+      <li>パスワードを入力</li>
+      <li>「ログイン」ボタン</li>
+    </ol>
+    <h4>各画面の説明</h4>
+    <ul>
+      <li><strong>シフト確認:</strong>全スタッフのシフトをカレンダー表示</li>
+      <li><strong>マイシフト:</strong>自分だけのシフトを表示・今月の勤務時間を確認</li>
+      <li><strong>シフト交換:</strong>交換依頼の発信・他人の依頼の承認</li>
+      <li><strong>使い方:</strong>このページ</li>
+    </ul>
+    <div class="rules-info">
+      💡 「🔄 更新」ボタンで最新のデータを取得できます。他のスタッフが交換依頼を承認した後などに使ってください。
+    </div>
+  </div>
+</section>
+
+</main>
+</div><!-- #app-wrap -->
+
+<div id="loading" style="display:none"><div class="spin"></div><div class="lt">読み込み中...</div></div>
+<div id="toast-wrap"></div>
+
+<script>
+// ===== STATE =====
+var P={}, allEv=[], cal=null, myCal=null, cats=new Set(), areaF='', staffList=[], editRows=[], pendingEdits={}, swapSent=false;
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded',function(){
+  hideLoad();
+
+  // スタッフ名を保存してログイン画面を表示
+  // (パスワード入力の手間だけ・スタッフ名は自動選択)
+  loadStaffNames();
+});
+
+function loadStaffNames(){
+  var sel=document.getElementById('ln');
+  sel.innerHTML='<option value="">読み込み中...</option>';
+
+  // 保存されたスタッフ名を取得
+  var savedName = '';
+  try {
+    savedName = localStorage.getItem('tsukurukids_lastuser') || '';
+  } catch(e){}
+
+  google.script.run
+    .withSuccessHandler(function(ns){
+      sel.innerHTML='<option value="">選択してください</option>';
+      if(!ns||!ns.length){
+        sel.innerHTML='<option value="">(データなし)</option>';
+        return;
+      }
+      ns.forEach(function(n){
+        if(!n) return;
+        var o=document.createElement('option');
+        o.value=n; o.textContent=n;
+        if (n === savedName) o.selected = true;
+        sel.appendChild(o);
+      });
+      // 保存されたスタッフ名があればパスワード欄にフォーカス
+      if (savedName) {
+        var pw = document.getElementById('lp');
+        if (pw) pw.focus();
+      }
+    })
+    .withFailureHandler(function(e){
+      sel.innerHTML='<option value="">エラー:'+((e&&e.message)||'不明')+'</option>';
+    })
+    .getStaffNames();
+}
+
+// ===== パスワード表示切替 =====
+function togglePw(){
+  var inp=document.getElementById('lp');
+  var btn=document.getElementById('pw-eye');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
+
+// ===== LOGIN =====
+function doLogin(){
+  var name=document.getElementById('ln').value.trim();
+  var pass=document.getElementById('lp').value.trim();
+  var err=document.getElementById('lerr');
+  var btn=document.getElementById('lbtn');
+  if(!name){err.textContent='スタッフ名を選択してください';err.style.display='block';return;}
+  if(!pass){err.textContent='パスワードを入力してください';err.style.display='block';return;}
+  err.style.display='none';
+  btn.textContent='ログイン中...';
+  btn.disabled=true;
+  google.script.run
+    .withSuccessHandler(function(r){
+      btn.textContent='ログイン';
+      btn.disabled=false;
+      if(!r||!r.success){
+        err.textContent=(r&&r.message)?r.message:'ログインに失敗しました';
+        err.style.display='block';
+        return;
+      }
+      P=r;
+      // スタッフ名だけ保存(次回はスタッフ名選択が自動)
+      try {
+        localStorage.setItem('tsukurukids_lastuser', name);
+      } catch(e){}
+      showApp();
+    })
+    .withFailureHandler(function(e){
+      btn.textContent='ログイン';
+      btn.disabled=false;
+      err.textContent='通信エラー:'+(e&&e.message?e.message:'不明なエラー');
+      err.style.display='block';
+    })
+    .loginWithPassword(name,pass);
+}
+
+function showApp(){
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+  applyRole();
+  renderSwNotice();
+  initCal();
+  google.script.run
+    .withSuccessHandler(function(has){swapSent=!!has;})
+    .withFailureHandler(function(){})
+    .hasActiveSwapRequest(P.userName);
+  google.script.run.withSuccessHandler(function(list){
+    staffList=list;
+    var sel=document.getElementById('sp');
+    if(sel){
+      sel.innerHTML='<option value="">選択してください</option>';
+      list.filter(function(s){return s.name!==P.userName;}).forEach(function(s){
+        var o=document.createElement('option');o.value=s.email;o.textContent=s.name;o.dataset.name=s.name;sel.appendChild(o);
+      });
+    }
+  }).withFailureHandler(function(){}).getStaffList();
+}
+
+function applyRole(){
+  var isAdmin=!!P.isAdmin;
+  document.getElementById('un').textContent=P.userName||'?';
+  document.getElementById('av').textContent=(P.userName||'?').charAt(0).toUpperCase();
+  document.getElementById('my-name').textContent=P.userName||'?';
+  var hdr=document.getElementById('hdr');
+  var nav=document.getElementById('nav');
+  var pill=document.getElementById('rpill');
+  hdr.className='header'+(isAdmin?'':' s');
+  nav.className='nav'+(isAdmin?'':' s');
+  pill.textContent=isAdmin?'ADMIN':'STAFF';
+  document.getElementById('t-my').classList.toggle('hidden', isAdmin);
+  document.getElementById('t-swap').classList.toggle('hidden', isAdmin);
+  document.getElementById('t-help').classList.toggle('hidden', isAdmin);
+  document.getElementById('t-dash').classList.toggle('hidden', !isAdmin);
+  document.getElementById('t-admin').classList.toggle('hidden', !isAdmin);
+  updateDeadlinePill();
+}
+
+function updateDeadlinePill(){
+  var pill=document.getElementById('deadline-pill');
+  if(!pill)return;
+  var today=new Date();
+  var day=today.getDate();
+  var msg='';
+  var urgent=false;
+  var hopeDay=P.hopeOffDeadlineDay||10;
+  var confirmDay=P.confirmDay||15;
+
+  if(day<hopeDay){
+    var left=hopeDay-day;
+    msg='📅 締切まであと'+left+'日';
+    if(left<=2)urgent=true;
+  } else if(day===hopeDay){
+    msg='🚨 本日、締切日!';
+    urgent=true;
+  } else if(day<confirmDay){
+    var left2=confirmDay-day;
+    msg='⏰ 確定まであと'+left2+'日';
+    if(left2<=2)urgent=true;
+  } else {
+    msg='✓ シフト確定済み';
+  }
+
+  pill.textContent=msg;
+  pill.classList.remove('hidden');
+  if(urgent)pill.classList.add('urgent');
+  else pill.classList.remove('urgent');
+}
+
+function doLogout(){
+  // スタッフ名は保持したまま(次回ログイン時に自動選択されるように)
+  // 「別の人でログイン」する場合はドロップダウンで選び直せる
+  P={};allEv=[];cal=null;myCal=null;pendingEdits={};editRows=[];
+  document.getElementById('app-wrap').style.display='none';
+  document.getElementById('login-wrap').style.display='flex';
+  document.getElementById('lp').value='';
+  document.getElementById('lerr').style.display='none';
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelector('.nav-btn').classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('p-shift').classList.add('active');
+}
+
+// ===== TAB =====
+function go(id,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('p-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(id==='myshift')initMyCal();
+  if(id==='swap')loadSwap();
+  if(id==='dashboard')loadDash();
+  if(id==='admin')loadAdmin();
+  if(id==='help')loadHelp();
+}
+
+// ===== CALENDAR =====
+function initCal(){
+  showLoad();
+  google.script.run.withSuccessHandler(function(ev){allEv=ev;renderCal(ev);hideLoad();}).withFailureHandler(function(){hideLoad();}).getShiftData(P.isAdmin);
+}
+function renderCal(ev){
+  var el=document.getElementById('cal');
+  var mob=window.innerWidth<=600;
+  if(cal)cal.destroy();
+  cal=new FullCalendar.Calendar(el,{
+    initialView:mob?'listMonth':'dayGridMonth',locale:'ja',events:ev,height:'auto',
+    headerToolbar:{left:'prev,next'+(mob?'':' today'),center:'title',right:'dayGridMonth,listMonth'},
+    buttonText:{dayGridMonth:'月',listMonth:'一覧'},noEventsText:'シフトはありません',
+    eventContent:function(arg){return evBox(arg);},
+    eventClick:function(arg){showDetail(arg.event);}
+  });
+  cal.render();
+}
+function evBox(arg){
+  var d=document.createElement('div');d.className='ev-box';
+  var cat=arg.event.extendedProps.cat||'';
+  var area=arg.event.extendedProps.area||'';
+  var mark=area==='うるま校'?'★':'';
+  if(arg.view&&arg.view.type==='listMonth'){
+    var time=arg.event.extendedProps.time||'';
+    d.innerHTML='<span class="ev-cat">'+cat+'</span><strong>'+arg.event.title+'</strong><span style="font-size:11px;opacity:.75;margin-left:5px">'+time+'</span>'+(mark?' ★':'');
+  }else{
+    d.innerHTML='<span class="ev-cat">'+cat+'</span>'+arg.event.title+(mark?'<span style="font-size:9px;margin-left:2px;opacity:.8">★</span>':'');
+  }
+  return{domNodes:[d]};
+}
+
+function initMyCal(){
+  if(myCal){
+    updateMyShiftCountForView(myCal.view.activeStart, myCal.view.activeEnd);
+    updateNextShift(myCal.getEvents());
+    return;
+  }
+  showLoad();
+  google.script.run.withSuccessHandler(function(ev){
+    var el=document.getElementById('my-cal');
+    var mob=window.innerWidth<=600;
+    myCal=new FullCalendar.Calendar(el,{
+      initialView:mob?'listMonth':'dayGridMonth',
+      locale:'ja',
+      events:ev,
+      height:'auto',
+      headerToolbar:{left:'prev,next'+(mob?'':' today'),center:'title',right:'dayGridMonth,listMonth'},
+      buttonText:{dayGridMonth:'月',listMonth:'一覧'},
+      noEventsText:'シフトはありません',
+      eventContent:function(arg){return evBox(arg);},
+      datesSet:function(info){
+        updateMyShiftCountForView(info.start, info.end);
+      }
+    });
+    myCal.render();
+    updateNextShift(myCal.getEvents());
+    hideLoad();
+  }).withFailureHandler(function(){hideLoad();}).getMyShiftData(P.userName, P.isAdmin);
+}
+
+function updateNextShift(events){
+  var box=document.getElementById('next-shift-info');
+  if(!box)return;
+  if(!events||!events.length){
+    box.innerHTML='<div class="next-shift-empty">今後のシフトはありません</div>';
+    return;
+  }
+  // 今日以降のシフトを絞り込み
+  var today=new Date();
+  today.setHours(0,0,0,0);
+  var upcoming=events.filter(function(ev){
+    return ev.start && ev.start>=today;
+  }).sort(function(a,b){return a.start-b.start;});
+
+  if(!upcoming.length){
+    box.innerHTML='<div class="next-shift-empty">今後のシフトはありません</div>';
+    return;
+  }
+  var next=upcoming[0];
+  var d=next.start;
+  var days=Math.floor((d-today)/(1000*60*60*24));
+  var mm=d.getMonth()+1;
+  var dd=d.getDate();
+  var dow=['日','月','火','水','木','金','土'][d.getDay()];
+  var time=next.extendedProps.time||'';
+  var area=next.extendedProps.area||'那覇校';
+  var cat=next.extendedProps.cat||'';
+
+  var countdown='';
+  if(days===0){
+    countdown='<div class="next-shift-today">🎯 今日!</div>';
+  } else if(days===1){
+    countdown='<div class="next-shift-countdown"><div class="next-shift-days">明日</div><div class="next-shift-days-label">出勤日</div></div>';
+  } else {
+    countdown='<div class="next-shift-countdown"><div class="next-shift-days">'+days+'</div><div class="next-shift-days-label">日後</div></div>';
+  }
+
+  box.innerHTML=
+    '<div>'
+    +'<div class="next-shift-date">'+mm+'月'+dd+'日('+dow+')</div>'
+    +'<div class="next-shift-time">'+cat+' '+time+'</div>'
+    +'<div class="next-shift-area">📍 '+area+'</div>'
+    +'</div>'
+    +countdown;
+}
+
+// ===== 再読み込みボタン =====
+function reloadShiftData(){
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(ev){
+      allEv=ev;
+      renderCal(ev);
+      applyF();
+      hideLoad();
+      toast('最新データを取得しました',0);
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('更新失敗:'+e.message,1);
+    })
+    .getShiftData(P.isAdmin);
+}
+
+function reloadMyShiftData(){
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(ev){
+      if(myCal){
+        myCal.removeAllEventSources();
+        myCal.addEventSource(ev);
+        updateMyShiftCountForView(myCal.view.activeStart, myCal.view.activeEnd);
+        updateNextShift(myCal.getEvents());
+      }
+      hideLoad();
+      toast('最新データを取得しました',0);
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('更新失敗:'+e.message,1);
+    })
+    .getMyShiftData(P.userName, P.isAdmin);
+}
+
+// ===== FILTER =====
+function fCat(el,c){cats.has(c)?(cats.delete(c),el.classList.remove('on')):(cats.add(c),el.classList.add('on'));applyF();}
+function fReset(){cats.clear();document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('on');});applyF();}
+function fArea(el,a){areaF=(areaF===a?'':a);document.querySelectorAll('#cn,#cu').forEach(function(c){c.classList.remove('on');});if(areaF)el.classList.add('on');applyF();}
+function fAreaReset(){areaF='';document.querySelectorAll('#cn,#cu').forEach(function(c){c.classList.remove('on');});applyF();}
+function applyF(){
+  var ev=allEv;
+  if(cats.size)ev=ev.filter(function(e){return cats.has(e.extendedProps.cat);});
+  if(areaF)ev=ev.filter(function(e){return e.extendedProps.area===areaF;});
+  if(cal){cal.removeAllEvents();cal.addEventSource(ev);}
+}
+
+// ===== シフト交換 =====
+var myShifts=[];
+
+function renderSwNotice(){
+  var w=document.getElementById('swn');
+  var f=document.getElementById('swf');
+  if(P.isShiftConfirmed){
+    w.innerHTML='<div class="notice nw">シフトは確定済みです(毎月'+P.confirmDay+'日以降は変更不可)。</div>';
+    if(f)f.style.display='none';
+  } else if(P.isHopeOffDeadline){
+    w.innerHTML='<div class="notice nw">今月の調整依頼は締め切りました(締切:毎月'+P.hopeOffDeadlineDay+'日)。</div>';
+    if(f)f.style.display='none';
+  } else {
+    w.innerHTML='<div class="notice ns">調整依頼の締切は毎月 <strong>'+P.hopeOffDeadlineDay+'日</strong> です。全体へ発信して先着で承認されます。</div>';
+  }
+}
+
+function goSub(btn, sub){
+  // サブナビ切り替え
+  document.querySelectorAll('.subnav-btn').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');
+  document.querySelectorAll('.sub-section').forEach(function(s){s.style.display='none';});
+  document.getElementById('sub-'+sub).style.display='block';
+  // 各サブロード
+  if(sub==='hopeoff') loadMyHopeOff();
+  if(sub==='exchange') loadExchange();
+  if(sub==='urgent') loadUrgent();
+}
+
+function updateSubDeadlines(){
+  var today=new Date();
+  var day=today.getDate();
+  var hopeDay=P.hopeOffDeadlineDay||10;
+  var confirmDay=P.confirmDay||15;
+  // 希望休締切通知
+  var hn=document.getElementById('hopeoff-deadline-notice');
+  var hf=document.getElementById('hopeoff-form-card');
+  if(hn && hf){
+    if(day<=hopeDay){
+      hn.className='notice ni';
+      hn.innerHTML='📅 締切:毎月<strong>'+hopeDay+'日</strong>まで(あと<strong>'+(hopeDay-day+1)+'日</strong>)';
+    } else {
+      hn.className='notice nw';
+      hn.innerHTML='⚠️ 今月の希望休申請は締め切りました(締切:毎月'+hopeDay+'日)。次回の申請は来月1日からできます。';
+      // 締切後はフォームを非表示
+      hf.querySelector('.fg').style.display='none';
+      var btns=hf.querySelectorAll('button');
+      btns.forEach(function(b){b.disabled=true;});
+    }
+  }
+  // 交換依頼通知
+  var en=document.getElementById('exchange-deadline-notice');
+  if(en){
+    if(day<hopeDay){
+      en.innerHTML='<div class="notice ns">📅 交換依頼の締切は毎月<strong>'+hopeDay+'日</strong>です。</div>';
+    } else if(day<confirmDay){
+      en.innerHTML='<div class="notice nw">⚠️ 今月の交換依頼は締め切りました。急な予定変更は「急な代打依頼」をご利用ください。</div>';
+    } else {
+      en.innerHTML='<div class="notice nw">⚠️ シフトは確定済みです('+confirmDay+'日以降)。急な予定変更は「急な代打依頼」をご利用ください。</div>';
+    }
+  }
+}
+
+function loadMyHopeOff(){
+  updateSubDeadlines();
+  var tb=document.getElementById('ho-mine');
+  if(!tb)return;
+  tb.innerHTML='<tr class="er"><td colspan="4">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(list){
+      if(!list||!list.length){
+        tb.innerHTML='<tr class="er"><td colspan="4">申請履歴はありません</td></tr>';
+        return;
+      }
+      var sc={'申請中':'#d97706','承認':'#16a34a','却下':'#dc2626'};
+      var si={'申請中':'⏳ 申請中','承認':'✓ 承認','却下':'✗ 却下'};
+      tb.innerHTML=list.map(function(r){
+        return '<tr><td>'+r.date+'</td><td style="font-size:11px">'+r.appliedAt+'</td>'
+          +'<td style="font-size:11px">'+(r.reason||'—')+'</td>'
+          +'<td><span style="color:'+(sc[r.status]||'#888')+';font-weight:600">'+(si[r.status]||r.status)+'</span></td></tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){
+      tb.innerHTML='<tr class="er"><td colspan="4">取得失敗:'+e.message+'</td></tr>';
+    })
+    .getMyHopeOffList(P.userName);
+}
+
+function submitHopeOff(){
+  var date=document.getElementById('ho-date').value;
+  var reason=document.getElementById('ho-reason').value.trim();
+  if(!date){toast('対象日を選択してください',1);return;}
+  if(!confirm(date+'の希望休を申請しますか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        document.getElementById('ho-date').value='';
+        document.getElementById('ho-reason').value='';
+        loadMyHopeOff();
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .submitHopeOff({date:date,staffName:P.userName,reason:reason});
+}
+
+function loadExchange(){
+  updateSubDeadlines();
+  loadSwapCore();
+}
+
+function loadUrgent(){
+  var wrap=document.getElementById('urgent-shift-checks');
+  if(!wrap)return;
+  wrap.innerHTML='<div style="font-size:12px;color:var(--tx2)">読み込み中...</div>';
+  google.script.run
+    .withSuccessHandler(function(shifts){
+      myShiftsUrgent=shifts;
+      if(!shifts.length){
+        wrap.innerHTML='<div style="font-size:12px;color:var(--tx2)">代打依頼できるシフトがありません(過去のシフトは対象外)</div>';
+        return;
+      }
+      wrap.innerHTML=shifts.map(function(s,i){
+        return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0">'
+          +'<input type="checkbox" id="urck-'+i+'" value="'+i+'">'
+          +'<span style="font-size:13px">'+s.label+'</span></label>';
+      }).join('');
+    })
+    .withFailureHandler(function(){wrap.innerHTML='<div style="color:var(--red)">取得失敗</div>';})
+    .getMyCurrentMonthShiftsForUrgentSwap(P.userName);
+
+  // 募集中一覧
+  var tb=document.getElementById('ur-board');
+  tb.innerHTML='<tr class="er"><td colspan="5">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(list){
+      var urgent=list.filter(function(r){return r.status==='緊急募集中';});
+      if(!urgent.length){
+        tb.innerHTML='<tr class="er"><td colspan="5">急な代打募集中の依頼はありません</td></tr>';
+        return;
+      }
+      var catIcon={'病欠':'🤒','急な家族の用事':'👨‍👩‍👧','学校行事':'🎒','その他':'📝'};
+      tb.innerHTML=urgent.map(function(r){
+        var isMe=r.requester===P.userName;
+        var reasonTxt=(catIcon[r.category]||'')+' '+r.category+(r.note?'('+r.note+')':'');
+        return '<tr class="'+(isMe?'swap-me':'')+'" style="background:#fef2f2">'
+          +'<td>'+r.date+'('+r.dow+')</td>'
+          +'<td>'+r.timeRange+'</td>'
+          +'<td>'+(isMe?'<strong>':'')+r.requester+(isMe?'</strong>':'')+'</td>'
+          +'<td style="font-size:11px">'+reasonTxt+'</td>'
+          +'<td>'+(!isMe?'<button class="btn bsc btn-sm" onclick="doApproveSwap('+r.rowIndex+')">代打で入る</button>':'—')+'</td>'
+          +'</tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(){})
+    .getSwapList();
+}
+
+function submitUrgent(){
+  var checks=document.querySelectorAll('[id^="urck-"]:checked');
+  if(!checks.length){toast('代打を依頼したいシフトを選択してください',1);return;}
+  var category=document.getElementById('ur-category').value;
+  if(!category){toast('理由カテゴリを選択してください',1);return;}
+  var note=document.getElementById('ur-note').value.trim();
+  if(!confirm('選択したシフトの急な代打を全体へ募集します。\n理由:'+category+(note?'('+note+')':'')+'\n\nよろしいですか?'))return;
+  var shifts=[];
+  checks.forEach(function(ck){
+    var s=myShiftsUrgent[parseInt(ck.value,10)];
+    if(s)shifts.push({date:s.date,timeRange:s.time,dow:s.dow});
+  });
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        document.querySelectorAll('[id^="urck-"]').forEach(function(c){c.checked=false;});
+        document.getElementById('ur-category').value='';
+        document.getElementById('ur-note').value='';
+        loadUrgent();
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .submitUrgentSwap({shifts:shifts,requester:P.userName,category:category,note:note});
+}
+
+var myShiftsUrgent=[];
+
+function loadSwap(){
+  // デフォルトは希望休タブ
+  loadMyHopeOff();
+  loadExchange();
+}
+
+function loadSwapCore(){
+  var board=document.getElementById('sw-board');
+  var mineTb=document.getElementById('sw-mine');
+  board.innerHTML='<tr class="er"><td colspan="5">読み込み中...</td></tr>';
+  mineTb.innerHTML='<tr class="er"><td colspan="5">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(shifts){
+      myShifts=shifts;
+      var wrap=document.getElementById('my-shift-checks');
+      if(!wrap)return;
+      wrap.innerHTML='';
+      if(!shifts.length){
+        wrap.innerHTML='<div style="font-size:12px;color:var(--tx2)">調整できるシフトがありません</div>';
+        return;
+      }
+      shifts.forEach(function(s,i){
+        var id='swck-'+i;
+        wrap.innerHTML+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0">'
+          +'<input type="checkbox" id="'+id+'" value="'+i+'" onchange="updateLineMsg()">'
+          +'<span style="font-size:13px">'+s.label+'</span></label>';
+      });
+    })
+    .withFailureHandler(function(){})
+    .getMyShiftsForSwap(P.userName);
+  google.script.run
+    .withSuccessHandler(function(list){
+      var sc={'募集中':'#d97706','承認済':'#16a34a','キャンセル':'#888780'};
+      var si={'募集中':'⏳ 募集中','承認済':'✓ 承認済','キャンセル':'— キャンセル'};
+      var active=list.filter(function(r){return r.status==='募集中'||r.status==='承認済';});
+      board.innerHTML=active.length?active.map(function(r){
+        var isMe=r.requester===P.userName;
+        var canApprove=r.status==='募集中'&&!isMe;
+        return '<tr class="'+(isMe?'swap-me':'')+'"><td>'+r.date+'('+r.dow+')</td>'
+          +'<td>'+r.timeRange+'</td>'
+          +'<td>'+(isMe?'<strong>':'')+r.requester+(isMe?'</strong>':'')+'</td>'
+          +'<td><span style="color:'+(sc[r.status]||'#888')+';font-weight:600">'+(si[r.status]||r.status)+'</span>'
+          +(r.approver?' <span style="font-size:11px;color:var(--tx2)">('+r.approver+')</span>':'')+'</td>'
+          +'<td>'+(canApprove?'<button class="btn bsc btn-sm" onclick="doApproveSwap('+r.rowIndex+')">承認する</button>':'—')+'</td></tr>';
+      }).join(''):'<tr class="er"><td colspan="5">募集中の依頼はありません</td></tr>';
+      var mine=list.filter(function(r){return r.requester===P.userName;});
+      mineTb.innerHTML=mine.length?mine.map(function(r){
+        var canCancel=r.status==='募集中';
+        return '<tr><td>'+r.date+'('+r.dow+')</td><td>'+r.timeRange+'</td>'
+          +'<td><span style="color:'+(sc[r.status]||'#888')+';font-weight:600">'+(si[r.status]||r.status)+'</span></td>'
+          +'<td>'+(r.approver||'—')+'</td>'
+          +'<td>'+(canCancel?'<button class="btn bg btn-sm" onclick="cancelSwap('+r.rowIndex+')">取り消し</button>':'—')+'</td></tr>';
+      }).join(''):'<tr class="er"><td colspan="5">依頼履歴はありません</td></tr>';
+      var today=new Date();
+      var ym=today.getFullYear()+'/'+(('0'+(today.getMonth()+1)).slice(-2));
+      var sent=mine.some(function(r){return (r.status==='募集中'||r.status==='承認済')&&r.date&&r.date.indexOf(ym)===0;});
+      if(sent)swapSent=true;
+      var sb=document.getElementById('sb');
+      var activeCnt=active.filter(function(r){return r.status==='募集中'&&r.requester!==P.userName;}).length;
+      if(activeCnt){sb.textContent=activeCnt;sb.classList.remove('hidden');}
+      else sb.classList.add('hidden');
+    })
+    .withFailureHandler(function(e){
+      board.innerHTML='<tr class="er"><td colspan="5">取得失敗:'+e.message+'</td></tr>';
+    })
+    .getSwapList();
+}
+
+function buildLineMessage(title, shifts){
+  var lines=shifts.map(function(s){
+    var dp=String(s.date||'').split('/');
+    var month=parseInt(dp[1],10);
+    var day=parseInt(dp[2],10);
+    var dateLabel=month+'月'+day+'日('+(s.dow||'')+')';
+    return '・'+dateLabel+' '+(s.time||s.timeRange||'');
+  });
+  return '@All\n'+title+'\n以下のシフトに入れなくなったため、代わりに入れる方がいましたら、シフト交換申請画面にて承認をお願いします。\n\n'+lines.join('\n');
+}
+
+function updateLineMsg(){
+  var checks=document.querySelectorAll('[id^="swck-"]:checked');
+  var wrap=document.getElementById('line-msg-wrap');
+  var msgEl=document.getElementById('line-msg-text');
+  if(!checks.length){if(wrap)wrap.style.display='none';return;}
+  if(wrap)wrap.style.display='block';
+  var selectedShifts=[];
+  checks.forEach(function(ck){
+    var s=myShifts[parseInt(ck.value,10)];
+    if(s)selectedShifts.push(s);
+  });
+  if(msgEl){
+    msgEl.textContent=buildLineMessage('シフト調整のお願いです。', selectedShifts);
+  }
+}
+
+function copyLineMsg(){
+  var text=document.getElementById('line-msg-text').textContent;
+  if(!text){toast('先にシフトを選択してください',1);return;}
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(function(){toast('文言をコピーしました',0);});
+  } else {
+    var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);toast('文言をコピーしました',0);
+  }
+}
+
+function submitSwapNew(){
+  var checks=document.querySelectorAll('[id^="swck-"]:checked');
+  if(!checks.length){toast('調整したいシフトを選択してください',1);return;}
+  if(!confirm('選択したシフトの調整依頼を全体へ発信します。\nLINEへのコピー送信も忘れずに行ってください!\n\nよろしいですか?'))return;
+  var shifts=[];
+  checks.forEach(function(ck){
+    var s=myShifts[parseInt(ck.value,10)];
+    if(s)shifts.push({date:s.date,timeRange:s.time,dow:s.dow});
+  });
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        swapSent=true;
+        document.querySelectorAll('[id^="swck-"]').forEach(function(c){c.checked=false;});
+        var wrap=document.getElementById('line-msg-wrap');
+        if(wrap)wrap.style.display='none';
+        loadSwap();
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .submitShiftSwap({shifts:shifts,requester:P.userName});
+}
+
+function doApproveSwap(ri){
+  if(!confirm('このシフトを引き受けますか?先着1名で確定されます。'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      if(!res.success){toast(res.message,1);return;}
+      toast('承認しました!シフトが確定されました。',0);
+      allEv=[];myCal=null;initCal();
+      loadSwap();
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .confirmSwapApproval(ri,P.userName);
+}
+
+function cancelSwap(ri){
+  if(!confirm('この依頼を取り消しますか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){swapSent=false;loadSwap();}
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .cancelSwap(ri);
+}
+
+// ===== DASHBOARD =====
+function loadDash(){
+  showLoad();
+  var mEl=document.getElementById('dash-month');
+  if(mEl && !mEl.value){
+    var d=new Date();
+    var nm=new Date(d.getFullYear(), d.getMonth()+1, 1);
+    var ymVal=nm.getFullYear()+'-'+('0'+(nm.getMonth()+1)).slice(-2);
+    mEl.value=ymVal;
+  }
+  var db=document.getElementById('db');
+  if(db)db.classList.add('hidden');
+  loadAdminHopeOffList();
+  loadHopeOffAlerts();
+  loadDashHours();
+  hideLoad();
+}
+
+function loadAdminHopeOffList(){
+  var tb=document.getElementById('admin-hopeoff-body');
+  if(!tb)return;
+  tb.innerHTML='<tr class="er"><td colspan="6">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(list){
+      if(!list||!list.length){
+        tb.innerHTML='<tr class="er"><td colspan="6">希望休申請はありません</td></tr>';
+        return;
+      }
+      var sc={'申請中':'#d97706','承認':'#16a34a','却下':'#dc2626'};
+      var si={'申請中':'⏳ 申請中','承認':'✓ 承認','却下':'✗ 却下'};
+      // バッジ更新(申請中の数)
+      var pendingCount=list.filter(function(r){return r.status==='申請中';}).length;
+      var db=document.getElementById('db');
+      if(db){
+        if(pendingCount>0){db.textContent=pendingCount;db.classList.remove('hidden');}
+        else db.classList.add('hidden');
+      }
+      tb.innerHTML=list.map(function(r){
+        var isPending=r.status==='申請中';
+        var actions=isPending?
+          '<button class="btn bsc btn-sm" onclick="approveHopeOff('+r.rowIndex+')">承認</button> '
+          +'<button class="btn bd btn-sm" onclick="rejectHopeOff('+r.rowIndex+')">却下</button>':
+          '—';
+        return '<tr'+(isPending?' style="background:#fefce8"':'')+'>'
+          +'<td><strong>'+r.date+'</strong></td>'
+          +'<td>'+r.staffName+'</td>'
+          +'<td style="font-size:11px">'+(r.reason||'—')+'</td>'
+          +'<td style="font-size:11px;color:var(--tx2)">'+r.appliedAt+'</td>'
+          +'<td><span style="color:'+(sc[r.status]||'#888')+';font-weight:600">'+(si[r.status]||r.status)+'</span></td>'
+          +'<td>'+actions+'</td></tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){
+      tb.innerHTML='<tr class="er"><td colspan="6">取得失敗:'+e.message+'</td></tr>';
+    })
+    .getAllHopeOffList();
+}
+
+function approveHopeOff(ri){
+  if(!confirm('この希望休申請を承認しますか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      if(res.success){
+        toast('承認しました',0);
+        loadAdminHopeOffList();
+        loadHopeOffAlerts();
+      } else {
+        toast('失敗しました',1);
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .updateHopeOffStatus(ri,'承認');
+}
+
+function rejectHopeOff(ri){
+  if(!confirm('この希望休申請を却下しますか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      if(res.success){
+        toast('却下しました',0);
+        loadAdminHopeOffList();
+        loadHopeOffAlerts();
+      } else {
+        toast('失敗しました',1);
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .updateHopeOffStatus(ri,'却下');
+}
+
+function loadHelp(){
+  var wrap=document.getElementById('help-shortage-list');
+  if(!wrap)return;
+  wrap.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--tx2);font-size:12px">読み込み中...</div>';
+  google.script.run
+    .withSuccessHandler(function(res){
+      renderHelp(res);
+    })
+    .withFailureHandler(function(e){
+      wrap.innerHTML='<div class="notice nw">取得失敗:'+e.message+'</div>';
+    })
+    .getShortageDaysForStaff(P.userName);
+}
+
+function renderHelp(res){
+  var wrap=document.getElementById('help-shortage-list');
+  if(!wrap)return;
+  if(!res||!res.days||!res.days.length){
+    wrap.innerHTML='<div class="help-empty">'
+      +'<div class="help-empty-icon">🎉</div>'
+      +'<div class="help-empty-title">今のところシフトは足りています!</div>'
+      +'<div class="help-empty-sub">また随時こちらをチェックしてみてください。</div>'
+      +'</div>';
+    var hb=document.getElementById('hb');
+    if(hb)hb.classList.add('hidden');
+    return;
+  }
+  // バッジ更新
+  var hb=document.getElementById('hb');
+  if(hb){hb.textContent=res.days.length;hb.classList.remove('hidden');}
+
+  var today=new Date();
+  today.setHours(0,0,0,0);
+
+  var cc={'①':'#185FA5','②':'#10b981','③':'#f59e0b','④':'#ef4444','⑤':'#8b5cf6'};
+
+  wrap.innerHTML=res.days.map(function(d, idx){
+    var dObj=new Date(d.date);
+    var diff=Math.floor((dObj-today)/(1000*60*60*24));
+    var urgencyLabel='';
+    var urgencyClass='';
+    if(diff<=3){
+      urgencyLabel='🔥 急募';
+      urgencyClass='critical';
+    } else if(diff<=7){
+      urgencyLabel='⚡ 早めに';
+      urgencyClass='';
+    } else {
+      urgencyLabel='💡 余裕あり';
+      urgencyClass='';
+    }
+    var mm=dObj.getMonth()+1;
+    var dd=dObj.getDate();
+    var dateLabel=mm+'月'+dd+'日('+d.dow+')';
+    var partnerText='';
+    if(d.partners&&d.partners.length){
+      partnerText='<div class="help-partner">'
+        +'<div class="help-partner-label">👥 その日一緒に入るスタッフ</div>'
+        +'<div>'+d.partners.join('、')+' さん</div>'
+        +'</div>';
+    } else {
+      partnerText='<div class="help-partner">'
+        +'<div class="help-partner-label">⚠️ その日</div>'
+        +'<div>まだ誰もシフトに入っていません。あなたが一番乗り!</div>'
+        +'</div>';
+    }
+    return '<div class="help-card">'
+      +'<div class="help-card-header">'
+      +'<div><div class="help-date">'+dateLabel+'</div><div class="help-day">'+d.date+'</div></div>'
+      +'<span class="help-urgency '+urgencyClass+'">'+urgencyLabel+'(あと'+diff+'日)</span>'
+      +'</div>'
+      +'<div class="help-info">'
+      +'<div class="help-info-row"><span class="help-info-icon">⏰</span><span><strong>'+d.time+'</strong> <span style="background:'+(cc[d.cat]||"#888")+';color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;margin-left:4px">'+d.cat+'</span></span></div>'
+      +'<div class="help-info-row"><span class="help-info-icon">📍</span><span>'+d.area+'</span></div>'
+      +'<div class="help-info-row"><span class="help-info-icon">👥</span><span>現在<strong>'+d.currentCount+'名</strong>/必要<strong>'+d.required+'名</strong> → <strong style="color:var(--red)">あと'+d.shortage+'名必要</strong></span></div>'
+      +'</div>'
+      +partnerText
+      +'<div class="help-btn-wrap"><button class="btn bsc" onclick="applyHelp('+idx+')">🙋 このシフトに入る</button></div>'
+      +'</div>';
+  }).join('');
+  window._helpDays=res.days;
+}
+
+function applyHelp(idx){
+  var d=window._helpDays&&window._helpDays[idx];
+  if(!d){toast('データが見つかりません',1);return;}
+  var msg=d.date+'('+d.dow+') '+d.time+' のシフトに入りますか?\n\n仲間から感謝されるはずです!';
+  if(!confirm(msg))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      if(res.success){
+        toast('ありがとうございます!シフトに入りました。',0);
+        loadHelp();
+        // マイシフトも更新
+        if(myCal){
+          google.script.run.withSuccessHandler(function(ev){
+            myCal.removeAllEventSources();
+            myCal.addEventSource(ev);
+            updateMyShiftCountForView(myCal.view.activeStart, myCal.view.activeEnd);
+            updateNextShift(myCal.getEvents());
+          }).getMyShiftData(P.userName, P.isAdmin);
+        }
+      } else {
+        toast(res.message||'失敗しました',1);
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .applyForShift({
+      staffName:P.userName,
+      date:d.date,
+      dow:d.dow,
+      time:d.time,
+      cat:d.cat,
+      area:d.area
+    });
+}
+
+function loadHopeOffAlerts(){
+  google.script.run
+    .withSuccessHandler(function(res){
+      var card=document.getElementById('hopeoff-alert-card');
+      var tb=document.getElementById('hopeoff-alert-body');
+      if(!card||!tb)return;
+      if(!res||!res.alerts||!res.alerts.length){
+        card.style.display='none';
+        return;
+      }
+      card.style.display='block';
+      tb.innerHTML=res.alerts.map(function(a){
+        var color=a.level==='critical'?'var(--red)':'var(--amb)';
+        return '<tr>'
+          +'<td>'+a.date+'</td>'
+          +'<td>'+a.dow+'</td>'
+          +'<td style="font-weight:700;color:'+color+'">'+a.count+'名</td>'
+          +'<td style="font-size:11px">'+a.names.join('、')+'</td>'
+          +'</tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(){})
+    .getHopeOffAlerts();
+}
+
+function loadDashHours(){
+  var mEl=document.getElementById('dash-month');
+  if(!mEl||!mEl.value){return;}
+  var monthFmt=mEl.value.replace('-','/');
+  var g=document.getElementById('d-hours');
+  g.innerHTML='<p style="font-size:12px;color:var(--tx2)">読み込み中...</p>';
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(!r.success){g.innerHTML='<p style="font-size:12px;color:var(--red)">取得失敗:'+r.message+'</p>';return;}
+      var summary=r.summary||{};
+      var ents=Object.entries(summary).sort(function(a,b){return b[1].hours-a[1].hours;});
+      if(!ents.length){g.innerHTML='<p style="font-size:12px;color:var(--tx2)">'+r.month+'のシフトデータがありません</p>';return;}
+      var max=ents[0][1].hours||1;
+      var cols=['#185FA5','#3B6D11','#854F0B','#A32D2D'];
+      g.innerHTML=ents.map(function(e,i){
+        var name=e[0],d=e[1];
+        var pct=Math.round(d.hours/max*100);
+        return'<div class="hr"><div class="hn">'+name+'</div><div class="ho"><div class="hi" style="width:'+pct+'%;background:'+cols[i%4]+'">'+d.hours+'h</div></div><div class="hv">'+d.shifts+'回</div></div>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){g.innerHTML='<p style="font-size:12px;color:var(--red)">エラー:'+e.message+'</p>';})
+    .getMonthlyHoursByStaff(monthFmt);
+}
+
+// ===== 時給設定 =====
+var wageData={};
+function loadWageForm(){
+  google.script.run
+    .withSuccessHandler(function(wages){
+      wageData=wages;
+      google.script.run
+        .withSuccessHandler(function(names){
+          var wrap=document.getElementById('wage-form');
+          if(!wrap)return;
+          wrap.innerHTML='<div class="g2" id="wage-inputs"></div>';
+          var grid=document.getElementById('wage-inputs');
+          (names||[]).forEach(function(n){
+            var val=wages[n]||'';
+            grid.innerHTML+='<div class="fg"><label class="fl2">'+n+'</label>'
+              +'<div style="display:flex;align-items:center;gap:6px">'
+              +'<input type="number" class="fi" id="wage-'+n+'" value="'+val+'" placeholder="例:1100" min="0" step="10" style="width:120px">'
+              +'<span style="font-size:13px;color:var(--tx2)">円/時</span>'
+              +'</div></div>';
+          });
+        })
+        .withFailureHandler(function(){})
+        .getStaffNames();
+    })
+    .withFailureHandler(function(){})
+    .getWageSettings();
+}
+function saveWages(){
+  var inputs=document.querySelectorAll('[id^="wage-"]');
+  var wages={};
+  var excludeIds=['wage-inputs','wage-month','wage-form','wage-result'];
+  inputs.forEach(function(el){
+    if(excludeIds.indexOf(el.id)!==-1) return;
+    if(el.tagName!=='INPUT') return;
+    var name=el.id.replace('wage-','');
+    var val=parseInt(el.value)||0;
+    if(name&&val>=0)wages[name]=val;
+  });
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(r){
+      hideLoad();
+      if(r.success){wageData=wages;toast('時給を保存しました',0);}
+      else toast('保存失敗:'+r.message,1);
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .saveWageSettings(wages);
+}
+function calcWageResult(){
+  var month=document.getElementById('wage-month').value;
+  if(!month){toast('対象月を選択してください',1);return;}
+  var monthFmt=month.replace('-','/');
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(r){
+      hideLoad();
+      if(!r.success){toast('計算失敗:'+r.message,1);return;}
+      renderWageResult(r);
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .calcWages(monthFmt);
+}
+function renderWageResult(r){
+  var wrap=document.getElementById('wage-result');
+  if(!r.summary||Object.keys(r.summary).length===0){
+    wrap.innerHTML='<div class="notice ni">'+r.month+'のシフトデータがありません</div>';return;
+  }
+  var fmt=function(n){return n.toLocaleString('ja-JP');};
+  var html='<div class="sg" style="margin-bottom:16px">'
+    +'<div class="sc"><div class="sn" style="color:var(--red)">'+fmt(Math.round(r.totalPay))+'</div><div class="sl">合計人件費(円)</div></div>'
+    +'<div class="sc"><div class="sn">'+r.totalHours+'</div><div class="sl">合計勤務時間(h)</div></div>'
+    +'</div>';
+  html+='<div class="tw"><table><thead><tr><th>スタッフ</th><th>回数</th><th>時間</th><th>時給</th><th>給与(円)</th></tr></thead><tbody>';
+  var entries=Object.entries(r.summary).sort(function(a,b){return b[1].pay-a[1].pay;});
+  entries.forEach(function(e){
+    var name=e[0],d=e[1];
+    var wage=r.wages[name]||0;
+    var noWage=wage===0;
+    html+='<tr'+(noWage?' style="color:var(--tx2)"':'')+'>'
+      +'<td>'+name+(noWage?' <span style="font-size:10px;color:var(--amb)">⚠未設定</span>':'')+'</td>'
+      +'<td>'+d.shifts+'回</td><td>'+d.hours+'h</td>'
+      +'<td>'+(wage?fmt(wage)+'円':'—')+'</td>'
+      +'<td style="font-weight:700">'+fmt(Math.round(d.pay))+'円</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
+}
+
+function getAdminMonthOffset(){
+  var el=document.getElementById('admin-month-offset');
+  return el ? parseInt(el.value,10) : 1;
+}
+
+function getAdminMonthLabel(){
+  var offset=getAdminMonthOffset();
+  if(offset===0)return '今月';
+  if(offset===1)return '翌月';
+  if(offset===2)return '再来月';
+  return '選択月';
+}
+
+function onAdminMonthChange(){
+  loadEdit();
+}
+
+function loadAdmin(){
+  var now=new Date();
+  var mm=('0'+(now.getMonth()+1)).slice(-2);
+  var monthVal=now.getFullYear()+'-'+mm;
+  var mEl=document.getElementById('wage-month');
+  if(mEl&&!mEl.value)mEl.value=monthVal;
+  loadWageForm();
+  loadEdit();
+  google.script.run.withSuccessHandler(function(list){
+    var tb=document.getElementById('ad-sw');
+    tb.innerHTML=list.length?list.map(function(r){
+      return '<tr><td>'+fmtD(r.appliedAt)+'</td><td>'+fmtD(r.date)+'</td><td>'+r.timeRange+'</td><td>'+r.requester+'</td><td>'+(r.approver||'—')+'</td><td>'+bdg(r.status)+'</td></tr>';
+    }).join(''):'<tr class="er"><td colspan="6">申請はありません</td></tr>';
+  }).getSwapList();
+}
+
+function adFetch(){
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(){
+      hideLoad();
+      toast('今月・翌月・再来月の開校日を取得しました',0);
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('エラー:'+e.message,1);
+    })
+    .fetchOpenDays();
+}
+
+// ===== プレビュー生成 =====
+function adGenPreview(){
+  var offset=getAdminMonthOffset();
+  var label=getAdminMonthLabel();
+  if(!confirm(label+'のシフトを生成します。\nまずプレビューに表示されます。まだスタッフには公開されません。'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(){
+      loadPreview();
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('エラー:'+e.message,1);
+    })
+    .runAutoAssignmentPreview(offset);
+}
+
+function loadPreview(){
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      var card=document.getElementById('preview-card');
+      if(!res||!res.rows||!res.rows.length){
+        if(card)card.style.display='none';
+        toast('プレビューデータがありません',1);
+        return;
+      }
+      card.style.display='block';
+      renderPreview(res);
+      card.scrollIntoView({behavior:'smooth',block:'start'});
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('プレビュー取得失敗:'+e.message,1);
+    })
+    .getPreviewShift();
+}
+
+function renderPreview(res){
+  var wrap=document.getElementById('preview-warnings');
+  if(res.warnings&&res.warnings.length){
+    wrap.innerHTML=res.warnings.map(function(w){
+      return '<div class="notice nw">⚠️ '+w.message+'</div>';
+    }).join('');
+  } else {
+    wrap.innerHTML='<div class="notice ns">✓ 警告はありません</div>';
+  }
+  var byStaff={};
+  var byDate={};
+  res.rows.forEach(function(r){
+    byStaff[r.name]=(byStaff[r.name]||0)+1;
+    byDate[r.date]=(byDate[r.date]||0)+1;
+  });
+  var totalShifts=res.rows.length;
+  var totalDays=Object.keys(byDate).length;
+  var totalStaff=Object.keys(byStaff).length;
+  document.getElementById('preview-summary').innerHTML=
+    '📊 合計 '+totalShifts+' シフト / '+totalDays+' 日 / '+totalStaff+' 名';
+  var cc={'①':'#185FA5','②':'#10b981','③':'#f59e0b','④':'#ef4444','⑤':'#8b5cf6'};
+  var tb=document.getElementById('preview-body');
+  tb.innerHTML=res.rows.map(function(r){
+    return '<tr>'
+      +'<td>'+r.date+'</td>'
+      +'<td>'+r.dow+'</td>'
+      +'<td style="font-size:11px">'+r.time+'</td>'
+      +'<td><span style="background:'+(cc[r.cat]||'#888')+';color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700">'+r.cat+'</span></td>'
+      +'<td style="font-size:11px;color:'+(r.area==='うるま校'?'#d97706':'#185FA5')+'">'+r.area+'</td>'
+      +'<td>'+r.name+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function commitPreview(){
+  var offset=getAdminMonthOffset();
+  var label=getAdminMonthLabel();
+  if(!confirm(label+'のシフトを本反映します。\nスタッフのカレンダーに反映されます。よろしいですか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        document.getElementById('preview-card').style.display='none';
+        allEv=[];
+        myCal=null;
+        initCal();
+        loadEdit();
+      }
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('反映エラー:'+e.message,1);
+    })
+    .commitPreviewShift(offset);
+}
+
+function discardPreview(){
+  if(!confirm('プレビューを破棄しますか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,0);
+      document.getElementById('preview-card').style.display='none';
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('エラー:'+e.message,1);
+    })
+    .discardPreviewShift();
+}
+
+function addManualOpenDayFromAdmin(){
+  var date=document.getElementById('manual-open-date').value;
+  var type=document.getElementById('manual-open-type').value||'イレギュラー開校';
+  if(!date){
+    toast('日付を選択してください',1);
+    return;
+  }
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        document.getElementById('manual-open-date').value='';
+        document.getElementById('manual-open-type').value='';
+      }
+    })
+    .withFailureHandler(function(e){
+      hideLoad();
+      toast('エラー:'+e.message,1);
+    })
+    .addManualOpenDay({date:date,type:type});
+}
+
+// ===== EDIT =====
+function loadEdit(){
+  pendingEdits={};
+  document.getElementById('edit-body').innerHTML='<tr class="er"><td colspan="8">読み込み中...</td></tr>';
+  document.getElementById('edit-notice').innerHTML='';
+  google.script.run
+    .withSuccessHandler(function(rows){
+      editRows=rows;
+      renderEdit();
+    })
+    .withFailureHandler(function(e){
+      toast('編集データ取得失敗:'+e.message,1);
+      document.getElementById('edit-body').innerHTML='<tr class="er"><td colspan="8">取得失敗</td></tr>';
+    })
+    .getShiftDataForEditByMonth(getAdminMonthOffset());
+}
+
+function renderEdit(){
+  var df=document.getElementById('ef-dow').value,af=document.getElementById('ef-area').value;
+  var rows=editRows.filter(function(r){return(!df||r.dow===df)&&(!af||r.area===af);});
+  var cc={'①':'#185FA5','②':'#10b981','③':'#f59e0b','④':'#ef4444','⑤':'#8b5cf6'};
+  var tb=document.getElementById('edit-body');
+  if(!rows.length){tb.innerHTML='<tr class="er"><td colspan="8">該当なし</td></tr>';return;}
+  tb.innerHTML=rows.map(function(r){
+    var cur=pendingEdits[r.rowIndex]!==undefined?pendingEdits[r.rowIndex]:r.name;
+    var chg=pendingEdits[r.rowIndex]!==undefined&&pendingEdits[r.rowIndex]!==r.name;
+    var opts=staffList.map(function(s){return'<option value="'+s.name+'"'+(s.name===cur?' selected':'')+'>'+s.name+'</option>';}).join('');
+    return'<tr id="er-'+r.rowIndex+'"'+(chg?' style="background:#fefce8"':'')+'><td>'+r.date+'</td><td>'+r.dow+'</td><td style="font-size:11px">'+r.time+'</td><td><span style="background:'+(cc[r.cat]||'#888')+';color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700">'+r.cat+'</span></td><td style="font-size:11px;color:'+(r.area==='うるま校'?'#d97706':'#185FA5')+';font-weight:500">'+r.area+'</td><td style="font-weight:'+(chg?700:400)+'">'+r.name+'</td><td><select class="fs" style="padding:3px 6px;font-size:11px;width:90px" onchange="onEdit('+r.rowIndex+',this.value)">'+opts+'</select></td><td id="es-'+r.rowIndex+'" style="font-size:11px;color:var(--tx2)">'+(chg?'<span style="color:#d97706;font-weight:600">未保存</span>':'—')+'</td></tr>';
+  }).join('');
+}
+
+function onEdit(ri,v){
+  var orig=editRows.find(function(r){return r.rowIndex===ri;});if(!orig)return;
+  v!==orig.name?pendingEdits[ri]=v:delete pendingEdits[ri];
+  var tr=document.getElementById('er-'+ri),sc=document.getElementById('es-'+ri);
+  if(tr)tr.style.background=pendingEdits[ri]?'#fefce8':'';
+  if(sc)sc.innerHTML=pendingEdits[ri]?'<span style="color:#d97706;font-weight:600">未保存</span>':'—';
+  var cnt=Object.keys(pendingEdits).length;
+  document.getElementById('edit-notice').innerHTML=cnt?'<div class="notice nw">未保存の変更が '+cnt+' 件あります。</div>':'';
+}
+
+function saveEdits(){
+  var ents=Object.entries(pendingEdits);if(!ents.length){toast('変更がありません',1);return;}
+  if(!confirm(ents.length+'件の変更を保存しますか?'))return;
+  showLoad();
+  var rem=ents.length,errs=[];
+  ents.forEach(function(e){
+    google.script.run.withSuccessHandler(function(res){
+      rem--;
+      var sc=document.getElementById('es-'+e[0]);
+      if(res.success){var orig=editRows.find(function(r){return r.rowIndex===parseInt(e[0]);});if(orig)orig.name=e[1];delete pendingEdits[e[0]];var tr=document.getElementById('er-'+e[0]);if(tr)tr.style.background='';if(sc)sc.innerHTML='<span style="color:#16a34a;font-weight:600">保存済</span>';}
+      else{errs.push(res.message);if(sc)sc.innerHTML='<span style="color:#dc2626;font-size:10px">'+res.message+'</span>';}
+      if(rem===0){hideLoad();errs.length?toast(errs.length+'件のルール違反があります',1):toast('すべて保存しました',0);var cnt=Object.keys(pendingEdits).length;document.getElementById('edit-notice').innerHTML=cnt?'<div class="notice nw">未保存の変更が '+cnt+' 件(ルール違反を修正してください)</div>':'';}
+    }).withFailureHandler(function(ex){rem--;if(rem===0){hideLoad();toast('エラーが発生しました',1);}}).updateShiftRow({rowIndex:parseInt(e[0]),newName:e[1]});
+  });
+}
+
+// ===== DETAIL MODAL =====
+function showDetail(ev){
+  var ep=ev.extendedProps;
+  var d=document.createElement('div');d.className='modal-bg';
+  d.innerHTML='<div class="modal"><div class="modal-title">シフト詳細</div><div class="fg"><div class="fl2">スタッフ</div><div style="font-size:15px;font-weight:700">'+ev.title+'</div></div><div class="g2"><div class="fg"><div class="fl2">日付</div><div>'+ev.startStr+'('+(ep.dow||'')+')</div></div><div class="fg"><div class="fl2">カテゴリ</div><div>'+(ep.cat||'')+'</div></div></div><div class="g2"><div class="fg"><div class="fl2">時間帯</div><div style="font-weight:700">'+(ep.time||'')+'</div></div><div class="fg"><div class="fl2">エリア</div><div style="font-weight:700;color:'+(ep.area==='うるま校'?'#d97706':'#185FA5')+'">'+(ep.area||'那覇校')+'</div></div></div><div class="modal-foot"><button class="btn bg" onclick="this.closest(\'.modal-bg\').remove()">閉じる</button></div></div>';
+  d.addEventListener('click',function(e){if(e.target===d)d.remove();});
+  document.body.appendChild(d);
+}
+
+function updateMyShiftCountForView(start, end){
+  if(!myCal)return;
+  var events=myCal.getEvents().filter(function(ev){
+    var d=ev.start;
+    return d && d>=start && d<end;
+  });
+  document.getElementById('my-cnt').textContent=events.length;
+
+  // 勤務時間の集計
+  var dm={'15:30~19:00':3.5,'16:00~19:00':3,'8:30~13:30':5,'9:00~13:30':4.5,'13:30~18:00':4.5,'9:00~18:00':9};
+  var totalHours=0;
+  events.forEach(function(ev){
+    var time=ev.extendedProps.time;
+    totalHours+=(dm[time]||0);
+  });
+  var myHours=document.getElementById('my-hours');
+  if(myHours)myHours.textContent=totalHours;
+}
+
+// ===== HELPERS =====
+function fmtD(v){if(!v)return'—';try{var d=new Date(v);if(isNaN(d))return String(v);return d.getFullYear()+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0');}catch(e){return String(v);}}
+function bdg(s){var m={'申請中':'bp2','承認':'ba','却下':'br2'};return'<span class="badge '+(m[s]||'')+'">'+s+'</span>';}
+function toast(msg,err){var w=document.getElementById('toast-wrap');var el=document.createElement('div');el.className='toast '+(err?'terr':'tok');el.textContent=(err?'✗ ':'✓ ')+msg;w.appendChild(el);setTimeout(function(){el.remove();},3500);}
+function showLoad(){document.getElementById('loading').style.display='flex';}
+function hideLoad(){document.getElementById('loading').style.display='none';}
+</script>
+</body>
+</html>

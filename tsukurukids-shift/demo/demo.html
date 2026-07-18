@@ -1,0 +1,422 @@
+<style>
+:root{
+  --acc:#185FA5; --acc-l:#E6F1FB; --sac:#3B6D11;
+  --me:#f59e0b; --me-l:#fef3c7;
+  --sur:#fff; --bg:#f4f6f9; --bdr:#e4e8ee; --txt:#1a2332; --tx2:#64748b;
+  --red:#dc2626; --grn:#16a34a; --rad:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;font-size:14px}
+.demo-banner{background:#fffbeb;border-bottom:1px solid #fde68a;color:#78350f;font-size:11px;padding:6px 14px;text-align:center}
+
+/* LOGIN */
+#login-wrap{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--sur);border-radius:16px;padding:32px 24px;width:100%;max-width:380px;border:1px solid var(--bdr)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo-icon{font-size:32px}
+.login-logo-title{font-size:18px;font-weight:700}
+.login-logo-sub{font-size:13px;color:var(--tx2)}
+
+/* APP */
+#app-wrap{display:none}
+.header{background:var(--acc);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.header.s{background:var(--sac)}
+.logo{font-size:15px;font-weight:700;color:#fff}
+.role-pill{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.35);margin-left:8px}
+.h-right{display:flex;align-items:center;gap:8px}
+.uname{font-size:13px;color:#fff;font-weight:600}
+.logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit}
+
+.main{max-width:900px;margin:0 auto;padding:16px}
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:var(--rad);padding:16px;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* 自分のサマリー行 */
+.me-bar{background:var(--sac);color:#fff;border-radius:var(--rad);padding:12px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.me-bar .who{font-size:15px;font-weight:700}
+.me-bar .stats{display:flex;gap:18px}
+.me-bar .num{font-size:22px;font-weight:700;line-height:1.2}
+.me-bar .lbl{font-size:10px;opacity:.85}
+
+/* フォーム・ボタン */
+.fg{margin-bottom:10px}
+.fl2{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+.fi,.fs{width:100%;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:15px;font-family:inherit;background:var(--sur);color:var(--txt)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.bp{background:var(--acc);color:#fff}.bd{background:var(--red);color:#fff}.bsc{background:var(--grn);color:#fff}
+.btn-sm{padding:4px 10px;font-size:11px}
+.hope-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.hope-row .fg{margin-bottom:0;flex:1;min-width:140px}
+
+/* テーブル */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--bg);padding:7px 10px;text-align:left;font-weight:600;color:var(--tx2);border-bottom:1px solid var(--bdr);white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--bdr)}
+.er td{text-align:center;color:var(--tx2);padding:14px}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.bp2{background:#fef3c7;color:#92400e}.ba{background:#dcfce7;color:#166534}.br2{background:#fee2e2;color:#991b1b}
+
+/* カレンダー */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.cal-title{font-size:16px;font-weight:700}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--tx2);align-items:center}
+.lg{display:inline-flex;align-items:center;gap:4px}
+.lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:11px;font-weight:600;color:var(--tx2);padding:3px 0}
+.cal-dow.sun{color:#dc2626}.cal-dow.sat{color:#2563eb}
+.cal-cell{min-height:76px;border:1px solid var(--bdr);border-radius:8px;padding:4px;background:#fff;overflow:hidden}
+.cal-cell.blank{background:transparent;border:none}
+.cal-cell.today{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.cal-cell.has-me{background:var(--me-l)}
+.cal-day{font-size:11px;font-weight:700;color:var(--tx2)}
+.cal-day.sun{color:#dc2626}.cal-day.sat{color:#2563eb}
+.chiplet{display:block;font-size:10px;border-radius:4px;padding:1px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#eef1f5;color:#475569}
+.chiplet.me{background:var(--me);color:#fff;font-weight:700}
+.chiplet.uruma{background:#fde68a;color:#78350f}
+.chiplet.c1{border-left:3px solid #185FA5}
+.chiplet.c2{border-left:3px solid #10b981}
+.chiplet.c3{border-left:3px solid #f59e0b}
+.chiplet.c4{border-left:3px solid #ef4444}
+
+/* 勤務時間バー */
+.hg{display:grid;gap:6px}
+.hr{display:flex;align-items:center;gap:7px}
+.hn{width:74px;font-size:11px;text-align:right;color:var(--tx2)}
+.ho{flex:1;background:var(--bg);border-radius:4px;height:18px;overflow:hidden}
+.hi{height:100%;display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;background:var(--acc)}
+
+.notice{padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:10px;border-left:3px solid}
+.ni{background:#dbeafe;color:#1e3a8a;border-color:#3b82f6}
+#toast-wrap{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:999}
+.toast{min-width:220px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18)}
+.tok{background:#14532d;color:#fff}.terr{background:#7f1d1d;color:#fff}
+@media(max-width:600px){.cal-cell{min-height:56px}.chiplet{font-size:9px;padding:1px 3px}}
+</style>
+
+<div class="demo-banner">🖥️ ブラウザ内デモ（この端末に保存・実スプレッドシート/メールとは非連携）。実データ12名＋本番と同じ割り当てロジックで動作。</div>
+
+<!-- LOGIN -->
+<div id="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">📅</div>
+      <div class="login-logo-title">ツクルキッズ</div>
+      <div class="login-logo-sub">シフト管理システム（デモ）</div>
+    </div>
+    <div class="fg"><label class="fl2">スタッフ名</label><select class="fs" id="ln"></select></div>
+    <div class="fg"><label class="fl2">パスワード</label><input type="password" class="fi" id="lp" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div id="lerr" style="font-size:12px;color:var(--red);margin-bottom:10px;display:none"></div>
+    <button class="btn bp" style="width:100%;justify-content:center;padding:13px" onclick="doLogin()">ログイン</button>
+    <div class="notice ni" style="margin-top:14px;margin-bottom:0">🔑 管理者: <b>管理者</b> / admin1234　スタッフ例: <b>ナカザト</b> / pass1234</div>
+  </div>
+</div>
+
+<!-- APP（1画面完結・タブなし） -->
+<div id="app-wrap">
+  <header class="header" id="hdr">
+    <div style="display:flex;align-items:center"><span class="logo">📅 ツクルキッズ</span><span class="role-pill" id="rpill">ADMIN</span></div>
+    <div class="h-right"><span class="uname" id="un">—</span><button class="logout-btn" onclick="doLogout()">ログアウト</button></div>
+  </header>
+  <main class="main">
+
+    <!-- 自分のサマリー（スタッフのみ） -->
+    <div class="me-bar" id="me-bar" style="display:none">
+      <div><div class="who" id="me-name">—</div><div style="font-size:11px;opacity:.85">🟧 オレンジがあなたのシフトです</div></div>
+      <div class="stats">
+        <div style="text-align:center"><div class="num" id="me-cnt">0</div><div class="lbl">今月の回数</div></div>
+        <div style="text-align:center"><div class="num" id="me-hrs">0</div><div class="lbl">時間 (h)</div></div>
+      </div>
+    </div>
+
+    <!-- 管理者：生成 -->
+    <div class="card" id="admin-gen" style="display:none">
+      <div class="card-title">⚙️ シフト自動生成</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select class="fs" id="gen-month" style="width:auto"><option value="0">今月</option><option value="1" selected>翌月</option></select>
+        <button class="btn bp" onclick="genShift()">自動生成する</button>
+        <span id="gen-summary" style="font-size:12px;color:var(--tx2)"></span>
+      </div>
+    </div>
+
+    <!-- カレンダー -->
+    <div class="card">
+      <div class="cal-head">
+        <div class="cal-title" id="cal-title">—</div>
+        <div class="legend" id="cal-legend"></div>
+      </div>
+      <div id="cal"></div>
+    </div>
+
+    <!-- スタッフ：希望休 -->
+    <div class="card" id="staff-hope" style="display:none">
+      <div class="card-title">🌴 希望休の申請</div>
+      <div class="hope-row">
+        <div class="fg"><label class="fl2">対象日</label><input type="date" class="fi" id="ho-date"></div>
+        <div class="fg"><label class="fl2">理由（任意）</label><input type="text" class="fi" id="ho-reason" placeholder="例：学校行事"></div>
+        <button class="btn bp" onclick="submitHope()">申請</button>
+      </div>
+      <div class="tw" style="margin-top:12px"><table><thead><tr><th>対象日</th><th>理由</th><th>状態</th></tr></thead><tbody id="ho-mine"></tbody></table></div>
+    </div>
+
+    <!-- 管理者：承認＋勤務時間 -->
+    <div class="card" id="admin-hope-card" style="display:none">
+      <div class="card-title">🌴 希望休の承認/却下</div>
+      <div class="tw"><table><thead><tr><th>対象日</th><th>スタッフ</th><th>理由</th><th>状態</th><th>操作</th></tr></thead><tbody id="admin-hope"></tbody></table></div>
+    </div>
+    <div class="card" id="admin-hours-card" style="display:none">
+      <div class="card-title">📊 スタッフ別 勤務時間</div>
+      <div class="hg" id="d-hours"></div>
+    </div>
+
+  </main>
+</div>
+<div id="toast-wrap"></div>
+
+<script>
+// ===== データ（Code.gs 初期データと同一・実12名） =====
+var STAFF = [
+  {name:'サキヤマ',sat:'可',w1530:'可',suiyo:'可',oneop:'不可'},
+  {name:'サイジョウ',sat:'可',w1530:'可',suiyo:'可',oneop:'不可'},
+  {name:'ナカザト',sat:'可',w1530:'可',suiyo:'可',oneop:'可'},
+  {name:'タジマ',sat:'可',w1530:'可',suiyo:'可',oneop:'可'},
+  {name:'オガワ',sat:'可',w1530:'可',suiyo:'可',oneop:'可'},
+  {name:'モロミザト',sat:'可',w1530:'可',suiyo:'可',oneop:'可'},
+  {name:'タカラ',sat:'不可',w1530:'不可',suiyo:'不可',oneop:'不可'},
+  {name:'ナカムラ',sat:'可',w1530:'不可',suiyo:'可',oneop:'可'},
+  {name:'カメハマ',sat:'不可',w1530:'不可',suiyo:'可',oneop:'不可'},
+  {name:'エグチ',sat:'不可',w1530:'可',suiyo:'可',oneop:'可'},
+  {name:'スナガワ',sat:'不可',w1530:'不可',suiyo:'不可',oneop:'不可'},
+  {name:'キシャバ',sat:'可',w1530:'不可',suiyo:'不可',oneop:'不可'}
+];
+var TIMETABLE_END='15:00';
+var SAT_AREA={}; STAFF.forEach(function(s){SAT_AREA[s.name]=(s.name==='タカラ')?'うるま校':'那覇校';});
+var LOGIN={'管理者':{pass:'admin1234',admin:true}};
+STAFF.forEach(function(s){LOGIN[s.name]={pass:'pass1234',admin:false};});
+var DOW=['日','月','火','水','木','金','土'];
+var DUR={'15:30~19:00':3.5,'16:00~19:00':3,'8:30~13:30':5,'13:30~18:00':4.5};
+
+var KEY='tsukurukids-demo-v1';
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return{}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+var DB=load();
+if(!DB.assignments)DB.assignments=[];
+if(!DB.timeoff)DB.timeoff=[];
+var P=null;
+
+// ===== 割り当てロジック（Code.gs 移植） =====
+function timeToMin(t){var m=String(t).match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:0;}
+function can1530(s){return s.w1530!=='不可'&&(timeToMin(TIMETABLE_END)+10<=timeToMin('15:30'));}
+function isHopeOff(name,dateStr){return DB.timeoff.some(function(r){return r.name===name&&r.date===dateStr&&r.status==='承認';});}
+function fisher(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}}
+function sortFair(pool,cnt){fisher(pool);pool.sort(function(a,b){return (cnt[a.name]||0)-(cnt[b.name]||0);});return pool;}
+function generate(offset){
+  var now=new Date();
+  var first=new Date(now.getFullYear(),now.getMonth()+offset,1);
+  var y=first.getFullYear(),mo=first.getMonth();
+  var daysInMonth=new Date(y,mo+1,0).getDate();
+  var pfx=y+'/'+('0'+(mo+1)).slice(-2)+'/';
+  DB.assignments=DB.assignments.filter(function(a){return a.date.indexOf(pfx)!==0;});
+  var cnt={};STAFF.forEach(function(s){cnt[s.name]=0;});
+  var out=[];
+  for(var d=1;d<=daysInMonth;d++){
+    var dow=DOW[new Date(y,mo,d).getDay()];
+    var dateStr=pfx+('0'+d).slice(-2);
+    if(dow==='日')continue;
+    if(dow==='土')assignSat(dateStr,dow,cnt,out);
+    else assignWeekday(dateStr,dow,cnt,out);
+  }
+  DB.assignments=DB.assignments.concat(out);save();
+  return {count:out.length,days:new Set(out.map(function(o){return o.date;})).size};
+}
+function assignWeekday(dateStr,dow,cnt,out){
+  var cand=STAFF.filter(function(s){
+    if(isHopeOff(s.name,dateStr))return false;
+    if(dow==='水'&&s.suiyo==='不可')return false;
+    return true; // 15:00終了+10分 <= 16:00
+  });
+  if(!cand.length)return;
+  cand=sortFair(cand.slice(),cnt);
+  var sel=[];
+  for(var i=0;i<cand.length&&sel.length<2;i++){
+    var s=cand[i];
+    if(sel.length===0&&cand.length===1&&s.oneop!=='可')continue;
+    sel.push(s);
+  }
+  if(!sel.length)return;
+  var all1530=sel.every(function(s){return can1530(s);});
+  sel.forEach(function(s){
+    out.push({date:dateStr,dow:dow,time:all1530?'15:30~19:00':'16:00~19:00',name:s.name,cat:all1530?'①':'②',area:'那覇校'});
+    cnt[s.name]++;
+  });
+}
+function assignSat(dateStr,dow,cnt,out){
+  STAFF.forEach(function(s){
+    if(SAT_AREA[s.name]!=='うるま校')return;
+    if(isHopeOff(s.name,dateStr))return;
+    out.push({date:dateStr,dow:dow,time:'8:30~13:30',name:s.name,cat:'③',area:'うるま校'});
+    cnt[s.name]++;
+  });
+  var pool=STAFF.filter(function(s){
+    if(SAT_AREA[s.name]==='うるま校')return false;
+    if(s.sat==='不可')return false;
+    if(isHopeOff(s.name,dateStr))return false;
+    return true;
+  });
+  if(!pool.length)return;
+  pool=sortFair(pool.slice(),cnt);
+  var am=pool.slice(0,3),amN=am.map(function(s){return s.name;});
+  var pm=pool.filter(function(s){return amN.indexOf(s.name)<0;}).slice(0,2);
+  am.forEach(function(s){out.push({date:dateStr,dow:dow,time:'8:30~13:30',name:s.name,cat:'③',area:'那覇校'});cnt[s.name]++;});
+  pm.forEach(function(s){out.push({date:dateStr,dow:dow,time:'13:30~18:00',name:s.name,cat:'④',area:'那覇校'});cnt[s.name]++;});
+}
+
+// ===== ログイン =====
+function initLogin(){
+  document.getElementById('ln').innerHTML='<option value="">選択してください</option><option value="管理者">管理者</option>'
+    +STAFF.map(function(s){return '<option value="'+s.name+'">'+s.name+'</option>';}).join('');
+}
+function doLogin(){
+  var name=document.getElementById('ln').value,pass=document.getElementById('lp').value.trim();
+  var err=document.getElementById('lerr');
+  if(!name){err.textContent='スタッフ名を選択してください';err.style.display='block';return;}
+  var acc=LOGIN[name];
+  if(!acc||acc.pass!==pass){err.textContent='スタッフ名またはパスワードが違います';err.style.display='block';return;}
+  err.style.display='none';
+  P={name:name,isAdmin:acc.admin};
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('app-wrap').style.display='block';
+  if(!DB.assignments.length)generate(1);
+  render();
+}
+function doLogout(){P=null;document.getElementById('app-wrap').style.display='none';document.getElementById('login-wrap').style.display='flex';document.getElementById('lp').value='';}
+
+// ===== 1画面レンダリング =====
+function render(){
+  var a=P.isAdmin;
+  document.getElementById('un').textContent=P.name;
+  document.getElementById('rpill').textContent=a?'ADMIN':'STAFF';
+  document.getElementById('hdr').className='header'+(a?'':' s');
+  document.getElementById('me-bar').style.display=a?'none':'flex';
+  document.getElementById('admin-gen').style.display=a?'block':'none';
+  document.getElementById('staff-hope').style.display=a?'none':'block';
+  document.getElementById('admin-hope-card').style.display=a?'block':'none';
+  document.getElementById('admin-hours-card').style.display=a?'block':'none';
+  renderCal();
+  if(a){renderAdminHope();renderHours();renderGenSummary();}
+  else {renderMeBar();renderMyHope();}
+}
+function mostMonth(){var m={};DB.assignments.forEach(function(x){var k=x.date.slice(0,7);m[k]=(m[k]||0)+1;});return Object.keys(m).sort(function(a,b){return m[b]-m[a];})[0]||null;}
+
+function renderCal(){
+  var mm=mostMonth();
+  var now=new Date();
+  var y,mo;
+  if(mm){y=+mm.slice(0,4);mo=+mm.slice(5,7)-1;}
+  else{var v=new Date(now.getFullYear(),now.getMonth()+1,1);y=v.getFullYear();mo=v.getMonth();}
+  document.getElementById('cal-title').textContent=y+'年'+(mo+1)+'月のシフト';
+  // 凡例
+  var lg=document.getElementById('cal-legend');
+  lg.innerHTML=P.isAdmin
+    ?'<span class="lg"><i style="background:#eef1f5;border-left:3px solid #185FA5"></i>①15:30</span><span class="lg"><i style="background:#eef1f5;border-left:3px solid #10b981"></i>②16:00</span><span class="lg"><i style="background:#eef1f5;border-left:3px solid #f59e0b"></i>③午前</span><span class="lg"><i style="background:#eef1f5;border-left:3px solid #ef4444"></i>④午後</span><span class="lg"><i style="background:#fde68a"></i>うるま校</span>'
+    :'<span class="lg"><i style="background:var(--me)"></i>自分</span><span class="lg"><i style="background:#eef1f5"></i>他のスタッフ</span>';
+  var pfx=y+'/'+('0'+(mo+1)).slice(-2);
+  var byDate={};
+  DB.assignments.forEach(function(x){if(x.date.slice(0,7)!==pfx)return;(byDate[x.date]=byDate[x.date]||[]).push(x);});
+  var startDow=new Date(y,mo,1).getDay(),days=new Date(y,mo+1,0).getDate();
+  var todayStr=fmtDate(new Date());
+  var catCls={'①':'c1','②':'c2','③':'c3','④':'c4'};
+  var html='<div class="cal-grid">';
+  DOW.forEach(function(d,i){html+='<div class="cal-dow'+(i===0?' sun':i===6?' sat':'')+'">'+d+'</div>';});
+  for(var b=0;b<startDow;b++)html+='<div class="cal-cell blank"></div>';
+  for(var d=1;d<=days;d++){
+    var dateStr=pfx+'/'+('0'+d).slice(-2);
+    var wd=new Date(y,mo,d).getDay();
+    var evs=(byDate[dateStr]||[]).slice();
+    // 自分のシフトを先頭に
+    if(!P.isAdmin)evs.sort(function(a,b){return (b.name===P.name?1:0)-(a.name===P.name?1:0);});
+    var hasMe=!P.isAdmin&&evs.some(function(e){return e.name===P.name;});
+    html+='<div class="cal-cell'+(dateStr===todayStr?' today':'')+(hasMe?' has-me':'')+'">';
+    html+='<div class="cal-day'+(wd===0?' sun':wd===6?' sat':'')+'">'+d+'</div>';
+    evs.forEach(function(e){
+      var cls='chiplet';
+      if(!P.isAdmin&&e.name===P.name)cls+=' me';
+      else if(e.area==='うるま校')cls+=' uruma';
+      else cls+=' '+(catCls[e.cat]||'');
+      var label=(!P.isAdmin&&e.name===P.name)?(e.cat+' '+e.time):e.name;
+      html+='<span class="'+cls+'" title="'+e.name+' '+e.time+'">'+label+'</span>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  document.getElementById('cal').innerHTML=html;
+}
+
+function renderMeBar(){
+  var mm=mostMonth();
+  document.getElementById('me-name').textContent=P.name;
+  var mine=DB.assignments.filter(function(a){return a.name===P.name&&(!mm||a.date.slice(0,7)===mm);});
+  var hrs=mine.reduce(function(s,a){return s+(DUR[a.time]||0);},0);
+  document.getElementById('me-cnt').textContent=mine.length;
+  document.getElementById('me-hrs').textContent=hrs;
+}
+function renderMyHope(){
+  var tb=document.getElementById('ho-mine');
+  var mine=DB.timeoff.filter(function(r){return r.name===P.name;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  var sc={'申請中':'bp2','承認':'ba','却下':'br2'};
+  tb.innerHTML=mine.length?mine.map(function(r){
+    return '<tr><td>'+r.date+'</td><td>'+(r.reason||'—')+'</td><td><span class="badge '+(sc[r.status]||'')+'">'+r.status+'</span></td></tr>';
+  }).join(''):'<tr class="er"><td colspan="3">申請履歴はありません</td></tr>';
+}
+function submitHope(){
+  var date=document.getElementById('ho-date').value,reason=document.getElementById('ho-reason').value.trim();
+  if(!date){toast('対象日を選択してください',1);return;}
+  DB.timeoff.push({id:Date.now(),date:date.replace(/-/g,'/'),name:P.name,reason:reason,status:'申請中'});
+  save();
+  document.getElementById('ho-date').value='';document.getElementById('ho-reason').value='';
+  toast('希望休を申請しました（管理者の承認待ち）',0);
+  renderMyHope();
+}
+function renderAdminHope(){
+  var tb=document.getElementById('admin-hope');
+  var list=DB.timeoff.slice().sort(function(a,b){if(a.status==='申請中'&&b.status!=='申請中')return -1;if(a.status!=='申請中'&&b.status==='申請中')return 1;return a.date.localeCompare(b.date);});
+  var sc={'申請中':'bp2','承認':'ba','却下':'br2'};
+  tb.innerHTML=list.length?list.map(function(r){
+    var act=r.status==='申請中'
+      ?'<button class="btn bsc btn-sm" onclick="decide('+r.id+',\'承認\')">承認</button> <button class="btn bd btn-sm" onclick="decide('+r.id+',\'却下\')">却下</button>':'—';
+    return '<tr'+(r.status==='申請中'?' style="background:#fefce8"':'')+'><td>'+r.date+'</td><td>'+r.name+'</td><td>'+(r.reason||'—')+'</td><td><span class="badge '+(sc[r.status]||'')+'">'+r.status+'</span></td><td>'+act+'</td></tr>';
+  }).join(''):'<tr class="er"><td colspan="5">希望休申請はありません</td></tr>';
+}
+function decide(id,status){
+  var r=DB.timeoff.find(function(x){return x.id===id;});if(!r)return;
+  r.status=status;save();
+  toast(status+'しました（デモではメール送信なし）',0);
+  renderAdminHope();
+}
+function renderHours(){
+  var mm=mostMonth();
+  var by={};
+  DB.assignments.forEach(function(a){if(mm&&a.date.slice(0,7)!==mm)return;by[a.name]=(by[a.name]||0)+(DUR[a.time]||0);});
+  var ents=Object.keys(by).map(function(k){return[k,by[k]];}).sort(function(a,b){return b[1]-a[1];});
+  var g=document.getElementById('d-hours');
+  var max=ents.length?ents[0][1]:1;
+  g.innerHTML=ents.length?ents.map(function(e){
+    return '<div class="hr"><div class="hn">'+e[0]+'</div><div class="ho"><div class="hi" style="width:'+Math.round(e[1]/max*100)+'%">'+e[1]+'h</div></div></div>';
+  }).join(''):'<div style="font-size:12px;color:var(--tx2)">シフトデータがありません。上の「自動生成する」を押してください。</div>';
+}
+function renderGenSummary(){
+  var mm=mostMonth();
+  var el=document.getElementById('gen-summary');
+  if(mm){var rows=DB.assignments.filter(function(a){return a.date.slice(0,7)===mm;});el.textContent='現在: '+mm+' に '+rows.length+'件';}
+  else el.textContent='';
+}
+function genShift(){
+  var r=generate(+document.getElementById('gen-month').value);
+  toast('シフトを生成しました（'+r.count+'件 / '+r.days+'日分）',0);
+  render();
+}
+function fmtDate(d){return d.getFullYear()+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+('0'+d.getDate()).slice(-2);}
+function toast(msg,err){var w=document.getElementById('toast-wrap');var el=document.createElement('div');el.className='toast '+(err?'terr':'tok');el.textContent=(err?'✗ ':'✓ ')+msg;w.appendChild(el);setTimeout(function(){el.remove();},3200);}
+initLogin();
+</script>
