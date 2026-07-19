@@ -149,6 +149,20 @@ td{padding:7px 10px;border-bottom:1px solid var(--bdr)}
       <div id="cal"></div>
     </div>
 
+    <!-- スタッフ：QR打刻（デモ） -->
+    <div class="card" id="staff-punch" style="display:none">
+      <div class="card-title">📷 出勤・退勤の打刻</div>
+      <div class="notice ni" style="margin-bottom:10px">
+        本番アプリでは教室のQRコードをカメラでスキャンします。このデモではボタンで打刻を再現します。<br>
+        1回目＝<b>出勤</b>、2回目＝<b>退勤</b>として記録されます。
+      </div>
+      <button class="btn bp" style="width:100%;justify-content:center;padding:13px" onclick="demoPunch()">📷 QRスキャン（打刻する）</button>
+      <div class="tw" style="margin-top:12px"><table>
+        <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>時間</th></tr></thead>
+        <tbody id="my-att"></tbody>
+      </table></div>
+    </div>
+
     <!-- スタッフ：希望休 -->
     <div class="card" id="staff-hope" style="display:none">
       <div class="card-title">🌴 希望休の申請</div>
@@ -168,6 +182,27 @@ td{padding:7px 10px;border-bottom:1px solid var(--bdr)}
     <div class="card" id="admin-hours-card" style="display:none">
       <div class="card-title">📊 スタッフ別 勤務時間</div>
       <div class="hg" id="d-hours"></div>
+    </div>
+
+    <!-- 管理者：QR勤怠 -->
+    <div class="card" id="admin-att-card" style="display:none">
+      <div class="card-title">📷 勤怠記録（QR打刻）</div>
+      <div class="notice ni" style="margin-bottom:10px">
+        本番アプリでは、管理画面に<b>毎日変わる出勤用QRコード</b>が表示され、スタッフのスキャン記録がここに並びます。
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>日付</th><th>スタッフ</th><th>出勤</th><th>退勤</th><th>時間(h)</th></tr></thead>
+        <tbody id="admin-att"></tbody>
+      </table></div>
+    </div>
+
+    <!-- 管理者：実績給与 -->
+    <div class="card" id="admin-payroll-card" style="display:none;border-left:4px solid var(--grn)">
+      <div class="card-title">💴 給与（勤怠実績ベース）</div>
+      <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">
+        本番アプリでは毎月1日に先月分が自動計算されます（時給は仮の1050円）。
+      </div>
+      <div id="admin-payroll"></div>
     </div>
 
   </main>
@@ -203,6 +238,7 @@ function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
 var DB=load();
 if(!DB.assignments)DB.assignments=[];
 if(!DB.timeoff)DB.timeoff=[];
+if(!DB.attendance)DB.attendance=[]; // {date:'yyyy/MM/dd', name, in:'HH:mm', out:'HH:mm'}
 var P=null;
 
 // ===== 割り当てロジック（Code.gs 移植） =====
@@ -300,12 +336,90 @@ function render(){
   document.getElementById('hdr').className='header'+(a?'':' s');
   document.getElementById('me-bar').style.display=a?'none':'flex';
   document.getElementById('admin-gen').style.display=a?'block':'none';
+  document.getElementById('staff-punch').style.display=a?'none':'block';
   document.getElementById('staff-hope').style.display=a?'none':'block';
   document.getElementById('admin-hope-card').style.display=a?'block':'none';
   document.getElementById('admin-hours-card').style.display=a?'block':'none';
+  document.getElementById('admin-att-card').style.display=a?'block':'none';
+  document.getElementById('admin-payroll-card').style.display=a?'block':'none';
   renderCal();
-  if(a){renderAdminHope();renderHours();renderGenSummary();}
-  else {renderMeBar();renderMyHope();}
+  if(a){renderAdminHope();renderHours();renderGenSummary();renderAdminAtt();renderPayroll();}
+  else {renderMeBar();renderMyHope();renderMyAtt();}
+}
+
+// ===== QR打刻（デモ：スキャンをボタンで再現） =====
+function nowHM(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+function attHours(inT,outT){
+  var a=timeToMin(inT),b=timeToMin(outT);
+  if(!a||!b||b<=a)return 0;
+  return Math.round((b-a)/60*100)/100;
+}
+function demoPunch(){
+  var today=fmtDate(new Date());
+  var t=nowHM();
+  var rec=DB.attendance.find(function(r){return r.date===today&&r.name===P.name;});
+  if(!rec){
+    DB.attendance.push({date:today,name:P.name,in:t,out:''});
+    save();
+    toast('出勤を記録しました（'+t+'） 今日もよろしくお願いします！',0);
+  }else{
+    rec.out=t;
+    save();
+    toast('退勤を記録しました（'+t+'） おつかれさまでした！',0);
+  }
+  renderMyAtt();
+}
+function renderMyAtt(){
+  var tb=document.getElementById('my-att');
+  var ym=fmtDate(new Date()).slice(0,7);
+  var mine=DB.attendance.filter(function(r){return r.name===P.name&&r.date.slice(0,7)===ym;})
+    .sort(function(a,b){return b.date.localeCompare(a.date);});
+  tb.innerHTML=mine.length?mine.map(function(r){
+    var h=r.out?attHours(r.in,r.out):0;
+    return '<tr><td>'+r.date+'</td><td>'+r.in+'</td>'
+      +'<td>'+(r.out||'<span style="color:var(--red);font-weight:600">未退勤</span>')+'</td>'
+      +'<td>'+(r.out?h+'h':'—')+'</td></tr>';
+  }).join(''):'<tr class="er"><td colspan="4">今月の打刻はまだありません</td></tr>';
+}
+function renderAdminAtt(){
+  var tb=document.getElementById('admin-att');
+  var rows=DB.attendance.slice().sort(function(a,b){return b.date.localeCompare(a.date)||a.name.localeCompare(b.name);});
+  tb.innerHTML=rows.length?rows.map(function(r){
+    var h=r.out?attHours(r.in,r.out):0;
+    return '<tr><td>'+r.date+'</td><td>'+r.name+'</td><td>'+r.in+'</td>'
+      +'<td>'+(r.out||'<span style="color:var(--red);font-weight:600">未退勤</span>')+'</td>'
+      +'<td>'+(r.out?h:'—')+'</td></tr>';
+  }).join(''):'<tr class="er"><td colspan="5">打刻記録はまだありません（スタッフでログインして打刻してみてください）</td></tr>';
+}
+function renderPayroll(){
+  var wrap=document.getElementById('admin-payroll');
+  if(!DB.attendance.length){
+    wrap.innerHTML='<div class="notice ni" style="margin-bottom:0">勤怠記録がまだありません。スタッフが打刻すると自動で集計されます。</div>';
+    return;
+  }
+  var by={};
+  DB.attendance.forEach(function(r){
+    if(!by[r.name])by[r.name]={days:0,hours:0};
+    by[r.name].days++;
+    if(r.out)by[r.name].hours=Math.round((by[r.name].hours+attHours(r.in,r.out))*100)/100;
+  });
+  var totalPay=0,totalH=0;
+  var rows=Object.keys(by).map(function(n){
+    var s=by[n];var wage=1050;var pay=Math.round(s.hours*wage);
+    totalPay+=pay;totalH=Math.round((totalH+s.hours)*100)/100;
+    return {name:n,days:s.days,hours:s.hours,wage:wage,pay:pay};
+  }).sort(function(a,b){return b.pay-a.pay;});
+  var fmt=function(n){return n.toLocaleString('ja-JP');};
+  var html='<div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">'
+    +'<div style="background:var(--bg);border-radius:8px;padding:10px 16px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--red)">'+fmt(totalPay)+'</div><div style="font-size:10px;color:var(--tx2)">合計支給額(円)</div></div>'
+    +'<div style="background:var(--bg);border-radius:8px;padding:10px 16px;text-align:center"><div style="font-size:20px;font-weight:700">'+totalH+'</div><div style="font-size:10px;color:var(--tx2)">合計実働(h)</div></div>'
+    +'</div>';
+  html+='<div class="tw"><table><thead><tr><th>スタッフ</th><th>出勤日数</th><th>実働(h)</th><th>時給</th><th>給与(円)</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html+='<tr><td>'+r.name+'</td><td>'+r.days+'日</td><td>'+r.hours+'h</td><td>'+fmt(r.wage)+'円</td><td style="font-weight:700">'+fmt(r.pay)+'円</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
 }
 function mostMonth(){var m={};DB.assignments.forEach(function(x){var k=x.date.slice(0,7);m[k]=(m[k]||0)+1;});return Object.keys(m).sort(function(a,b){return m[b]-m[a];})[0]||null;}
 
