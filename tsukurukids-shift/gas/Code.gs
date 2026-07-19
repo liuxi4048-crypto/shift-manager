@@ -59,6 +59,11 @@ const TAIKEN_CALENDAR_ID = '4ce9ab6e0eb69adb88164a7af246bee2d2ce63365f6beff7064b
 const HOPE_OFF_ALERT_THRESHOLD = 3; // 希望休集中警告のしきい値(3人以上で警告)
 const PREVIEW_SHEET_NAME = '完成シフト表_プレビュー';
 
+// QR勤怠(打刻)
+const ATTENDANCE_SHEET = '勤怠';
+const PAYROLL_RESULT_SHEET = '給与計算_実績';
+const QR_PUNCH_PREFIX = 'TSUKURUKIDS_PUNCH:';
+
 // ============================================================
 // メニュー
 // ============================================================
@@ -222,6 +227,10 @@ function initializeSpreadsheet() {
     ['日付', '曜日', 'イベント名'], []);
   seed('開校日（再来月）',
     ['日付', '曜日', 'イベント名'], []);
+  seed(ATTENDANCE_SHEET,
+    ['日付', 'スタッフ名', '出勤時刻', '退勤時刻', '勤務時間(h)'], []);
+  seed(PAYROLL_RESULT_SHEET,
+    ['対象月', 'スタッフ名', '勤務日数', '勤務時間(h)', '時給(円)', '給与(円)', '計算日時'], []);
 
   const msg =
     '初回セットアップが完了しました。\n\n' +
@@ -262,6 +271,8 @@ function setupTriggers() {
 function fetchAndPublishMonthly() {
   fetchOpenDaysMulti(true);
   runAutoAssignmentForMonth(1, true);
+  // 毎月1日: 先月の勤怠実績から給与を計算し「給与計算_実績」シートへ保存
+  try { monthlyPayrollJob(); } catch (e) { Logger.log('月次給与計算に失敗: ' + e.message); }
 }
 
 function fetchOpenDays() {
@@ -2370,4 +2381,233 @@ function getAllHopeOffList() {
     reason: r.reason,
     status: r.status
   }));
+}
+
+// ============================================================
+// 【QR勤怠】スキャン打刻・勤怠記録・実績給与計算
+// ============================================================
+// 仕組み:
+//   - 管理者画面に「今日の出勤用QRコード」を表示(印刷して掲示も可)
+//   - QRの中身は QR_PUNCH_PREFIX + その日限りのトークン
+//     (トークン = SHA-256(日付|秘密鍵) の先頭8桁。秘密鍵はスクリプトプロパティに自動生成)
+//     → 前日のQRの写真や自宅からの再利用では打刻できない
+//   - スタッフはアプリの「打刻」画面でカメラスキャン(手入力フォールバックあり)
+//   - 1回目のスキャン=出勤、2回目=退勤。3回目以降は退勤時刻を上書き(最後の打刻が退勤)
+//   - 毎月1日のトリガーで先月分を集計し「給与計算_実績」シートへ保存
+
+function getQrSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let s = props.getProperty('QR_SECRET');
+  if (!s) {
+    s = Utilities.getUuid();
+    props.setProperty('QR_SECRET', s);
+  }
+  return s;
+}
+
+function attendanceTokenFor_(dateStr) {
+  const raw = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256, dateStr + '|' + getQrSecret_());
+  return raw.slice(0, 4)
+    .map(function (b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); })
+    .join('');
+}
+
+/** 管理者画面: 今日のQRコードの中身(テキスト)を取得 */
+function getQrPunchInfo() {
+  const today = Utilities.formatDate(new Date(), 'JST', 'yyyy/MM/dd');
+  const token = attendanceTokenFor_(today);
+  return { date: today, token: token, text: QR_PUNCH_PREFIX + token };
+}
+
+function fmtTimeCell_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'JST', 'HH:mm');
+  return String(v || '').trim();
+}
+
+function attendanceHours_(inT, outT) {
+  const a = timeToMin(fmtTimeCell_(inT));
+  const b = timeToMin(fmtTimeCell_(outT));
+  if (!a || !b || b <= a) return 0;
+  return Math.round((b - a) / 60 * 100) / 100;
+}
+
+/**
+ * スタッフの打刻。qrText はスキャンしたQRの中身(または手入力トークン)。
+ * 1回目=出勤 / 2回目=退勤 / 3回目以降=退勤を上書き。
+ */
+function punchAttendance(staffName, qrText) {
+  if (!staffName) return { success: false, message: 'スタッフ名がありません' };
+  let text = String(qrText || '').trim();
+  // 手入力ではトークンのみの入力も許可
+  if (text.indexOf(QR_PUNCH_PREFIX) === 0) text = text.slice(QR_PUNCH_PREFIX.length);
+  if (!text) return { success: false, message: 'QRコードを読み取れませんでした' };
+
+  const today = Utilities.formatDate(new Date(), 'JST', 'yyyy/MM/dd');
+  if (text.toLowerCase() !== attendanceTokenFor_(today)) {
+    return { success: false, message: 'QRコードが正しくないか、期限切れです。今日の出勤用QRを読み取ってください。' };
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(ATTENDANCE_SHEET);
+    if (!sheet) {
+      sheet = ss.insertSheet(ATTENDANCE_SHEET);
+      sheet.appendRow(['日付', 'スタッフ名', '出勤時刻', '退勤時刻', '勤務時間(h)']);
+    }
+    const nowStr = Utilities.formatDate(new Date(), 'JST', 'HH:mm');
+    const values = sheet.getDataRange().getValues();
+    for (let i = 1; i < values.length; i++) {
+      if (!values[i][0]) continue;
+      const d = Utilities.formatDate(new Date(values[i][0]), 'JST', 'yyyy/MM/dd');
+      if (d !== today || String(values[i][1]).trim() !== String(staffName).trim()) continue;
+      const inT = fmtTimeCell_(values[i][2]);
+      // 2回目以降: 退勤時刻を記録(既にあれば上書き=最後の打刻が退勤)
+      sheet.getRange(i + 1, 4).setValue(nowStr);
+      sheet.getRange(i + 1, 5).setValue(attendanceHours_(inT, nowStr));
+      return {
+        success: true, type: '退勤', time: nowStr,
+        message: '退勤を記録しました（' + nowStr + '） おつかれさまでした！'
+      };
+    }
+    sheet.appendRow([today, staffName, nowStr, '', '']);
+    return {
+      success: true, type: '出勤', time: nowStr,
+      message: '出勤を記録しました（' + nowStr + '） 今日もよろしくお願いします！'
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 勤怠記録を月指定で取得(管理者用)。month='yyyy/MM' */
+function getAttendanceForMonth(month) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(ATTENDANCE_SHEET);
+  if (!sheet) return [];
+  const rows = [];
+  sheet.getDataRange().getValues().slice(1).forEach(function (r) {
+    if (!r[0]) return;
+    const d = new Date(r[0]);
+    const ym = Utilities.formatDate(d, 'JST', 'yyyy/MM');
+    if (month && ym !== month) return;
+    const inT = fmtTimeCell_(r[2]);
+    const outT = fmtTimeCell_(r[3]);
+    rows.push({
+      date: Utilities.formatDate(d, 'JST', 'yyyy/MM/dd'),
+      name: String(r[1] || '').trim(),
+      in: inT,
+      out: outT,
+      hours: outT ? (Number(r[4]) || attendanceHours_(inT, outT)) : 0,
+      open: !outT
+    });
+  });
+  rows.sort(function (a, b) { return b.date.localeCompare(a.date) || a.name.localeCompare(b.name); });
+  return rows;
+}
+
+/** 自分の勤怠記録(スタッフ用・当月) */
+function getMyAttendance(staffName) {
+  const month = Utilities.formatDate(new Date(), 'JST', 'yyyy/MM');
+  return getAttendanceForMonth(month).filter(function (r) { return r.name === String(staffName).trim(); });
+}
+
+/** 勤怠実績×時給から給与を計算。month='yyyy/MM' */
+function calcAttendancePayroll(month) {
+  try {
+    const rows = getAttendanceForMonth(month);
+    const wages = getWageSettings();
+    const summary = {};
+    rows.forEach(function (r) {
+      if (!r.name) return;
+      if (!summary[r.name]) summary[r.name] = { hours: 0, days: 0, pay: 0, openDays: 0 };
+      summary[r.name].days += 1;
+      if (r.open) { summary[r.name].openDays += 1; return; } // 退勤なしは時間0(要確認として件数のみ)
+      summary[r.name].hours = Math.round((summary[r.name].hours + r.hours) * 100) / 100;
+    });
+    let totalPay = 0, totalHours = 0;
+    Object.keys(summary).forEach(function (name) {
+      const s = summary[name];
+      s.wage = wages[name] || 0;
+      s.pay = Math.round(s.hours * s.wage);
+      totalPay += s.pay;
+      totalHours = Math.round((totalHours + s.hours) * 100) / 100;
+    });
+    return { success: true, month: month, summary: summary, totalPay: totalPay, totalHours: totalHours };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+/** 計算結果を「給与計算_実績」シートへ保存(同月の既存行は置き換え) */
+function writePayrollResult_(month, result) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(PAYROLL_RESULT_SHEET);
+  const header = ['対象月', 'スタッフ名', '勤務日数', '勤務時間(h)', '時給(円)', '給与(円)', '計算日時'];
+  if (!sheet) {
+    sheet = ss.insertSheet(PAYROLL_RESULT_SHEET);
+    sheet.appendRow(header);
+  }
+  const values = sheet.getDataRange().getValues();
+  const kept = values.slice(1).filter(function (r) { return String(r[0]) !== month; });
+  sheet.clear();
+  sheet.appendRow(header);
+  const ts = Utilities.formatDate(new Date(), 'JST', 'yyyy/MM/dd HH:mm');
+  const newRows = Object.keys(result.summary).sort().map(function (name) {
+    const s = result.summary[name];
+    return [month, name, s.days, s.hours, s.wage, s.pay, ts];
+  });
+  const all = kept.concat(newRows);
+  if (all.length) sheet.getRange(2, 1, all.length, header.length).setValues(all);
+}
+
+/** 毎月1日のトリガーから呼ばれる: 先月分を計算して保存 */
+function monthlyPayrollJob() {
+  const today = new Date();
+  const prevMonth = Utilities.formatDate(
+    new Date(today.getFullYear(), today.getMonth() - 1, 1), 'JST', 'yyyy/MM');
+  const result = calcAttendancePayroll(prevMonth);
+  if (result.success) writePayrollResult_(prevMonth, result);
+  return result;
+}
+
+/**
+ * 管理者画面用: 実績給与を取得。
+ * 保存済み(給与計算_実績)があればそれを、無ければその場で計算して返す。
+ */
+function getAttendancePayroll(month) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(PAYROLL_RESULT_SHEET);
+  if (sheet) {
+    const rows = sheet.getDataRange().getValues().slice(1)
+      .filter(function (r) { return String(r[0]) === month; });
+    if (rows.length) {
+      const summary = {};
+      let totalPay = 0, totalHours = 0, calculatedAt = '';
+      rows.forEach(function (r) {
+        summary[String(r[1])] = {
+          days: Number(r[2]) || 0, hours: Number(r[3]) || 0,
+          wage: Number(r[4]) || 0, pay: Number(r[5]) || 0, openDays: 0
+        };
+        totalPay += Number(r[5]) || 0;
+        totalHours = Math.round((totalHours + (Number(r[3]) || 0)) * 100) / 100;
+        calculatedAt = String(r[6] || '');
+      });
+      return { success: true, month: month, summary: summary, totalPay: totalPay, totalHours: totalHours, fromSheet: true, calculatedAt: calculatedAt };
+    }
+  }
+  const live = calcAttendancePayroll(month);
+  live.fromSheet = false;
+  return live;
+}
+
+/** 管理者画面用: 手動で計算してシートに保存(月次トリガーを待たずに確定したい場合) */
+function recalcAndSavePayroll(month) {
+  const result = calcAttendancePayroll(month);
+  if (!result.success) return result;
+  writePayrollResult_(month, result);
+  result.fromSheet = true;
+  return result;
 }

@@ -22,6 +22,8 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/ja.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 <style>
 :root{
   --acc:#185FA5; --acc-l:#E6F1FB;
@@ -367,6 +369,7 @@ body.has-bottom-nav{padding-bottom:66px}
 <nav class="nav" id="nav">
   <button class="nav-btn active" onclick="go('shift',this)"><span class="nav-icon">📅</span><span class="nav-label">シフト</span></button>
   <button class="nav-btn" id="t-my" onclick="go('myshift',this)"><span class="nav-icon">🏠</span><span class="nav-label">マイ</span></button>
+  <button class="nav-btn" id="t-punch" onclick="go('punch',this)"><span class="nav-icon">📷</span><span class="nav-label">打刻</span></button>
   <button class="nav-btn" id="t-swap" onclick="go('swap',this)"><span class="nav-icon">🔄</span><span class="nav-label">調整<span class="tbadge hidden" id="sb">0</span></span></button>
   <button class="nav-btn" id="t-help" onclick="go('help',this)"><span class="nav-icon">🙋</span><span class="nav-label">ヘルプ<span class="tbadge hidden" id="hb">0</span></span></button>
   <button class="nav-btn hidden" id="t-dash" onclick="go('dashboard',this)"><span class="nav-icon">📊</span><span class="nav-label">ダッシュ<span class="tbadge hidden" id="db">0</span></span></button>
@@ -419,6 +422,37 @@ body.has-bottom-nav{padding-bottom:66px}
     </div>
   </div>
   <div class="cal-wrap"><div id="my-cal"></div></div>
+</section>
+
+<!-- QR打刻(スタッフ) -->
+<section class="page" id="p-punch">
+  <div class="ph"><div><div class="pt">📷 出勤・退勤の打刻</div><div class="ps">教室に掲示されたQRコードをスキャン</div></div></div>
+  <div class="card">
+    <div class="card-title">QRコードをスキャン</div>
+    <div class="notice ni">1回目のスキャンが<strong>出勤</strong>、2回目が<strong>退勤</strong>として記録されます。</div>
+    <button class="btn bp" id="scan-start-btn" onclick="startScan()" style="width:100%;justify-content:center;padding:14px;font-size:15px">📷 スキャンを開始する</button>
+    <div id="scan-area" style="display:none;margin-top:12px">
+      <video id="scan-video" style="width:100%;max-width:420px;border-radius:10px;display:block;margin:0 auto" muted playsinline></video>
+      <canvas id="scan-canvas" style="display:none"></canvas>
+      <div style="text-align:center;margin-top:8px">
+        <button class="btn bg" onclick="stopScan()">スキャンを中止</button>
+      </div>
+    </div>
+    <details style="margin-top:12px">
+      <summary style="font-size:12px;color:var(--tx2);cursor:pointer">カメラが使えない場合（コードを手入力）</summary>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <input type="text" class="fi" id="punch-token-input" placeholder="QRの下に記載の8桁コード" style="flex:1;min-width:160px">
+        <button class="btn bp" onclick="punchByToken()">打刻する</button>
+      </div>
+    </details>
+  </div>
+  <div class="card">
+    <div class="card-title">今月の自分の勤怠</div>
+    <div class="tw"><table>
+      <thead><tr><th>日付</th><th>出勤</th><th>退勤</th><th>時間</th></tr></thead>
+      <tbody id="my-attendance"></tbody>
+    </table></div>
+  </div>
 </section>
 
 <!-- シフト調整(希望休申請・交換依頼・急な代打依頼) -->
@@ -563,6 +597,33 @@ body.has-bottom-nav{padding-bottom:66px}
     </div>
   </div>
 
+  <!-- QR勤怠: 勤怠記録 -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between">
+      <span>📷 勤怠記録（QR打刻）</span>
+      <input type="month" class="fi" id="att-month" style="width:160px;padding:5px 8px;font-size:12px" onchange="loadAttendanceAdmin()">
+    </div>
+    <div class="tw" style="max-height:320px;overflow-y:auto"><table>
+      <thead><tr><th>日付</th><th>スタッフ</th><th>出勤</th><th>退勤</th><th>時間(h)</th></tr></thead>
+      <tbody id="att-body"><tr class="er"><td colspan="5">読み込み中...</td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- QR勤怠: 実績給与 -->
+  <div class="card" style="border-left:4px solid var(--grn)">
+    <div class="card-title" style="justify-content:space-between">
+      <span>💴 給与（勤怠実績ベース）</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="month" class="fi" id="payroll-month" style="width:160px;padding:5px 8px;font-size:12px" onchange="loadPayrollActual()">
+        <button class="btn bp btn-sm" onclick="recalcPayroll()">再計算して確定</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">
+      毎月1日に先月分が自動計算され「給与計算_実績」シートに保存されます。ここではいつでも確認・再計算できます。
+    </div>
+    <div id="payroll-actual"><div style="font-size:12px;color:var(--tx2)">読み込み中...</div></div>
+  </div>
+
   <div class="card">
     <div class="card-title" style="justify-content:space-between">
       <span>スタッフ別 勤務時間</span>
@@ -589,6 +650,21 @@ body.has-bottom-nav{padding-bottom:66px}
     </select>
     <button class="btn bp" onclick="adFetch()">開校日を3か月分取得</button>
     <button class="btn bp" onclick="adGenPreview()">選択月のシフト生成(プレビュー)</button>
+  </div>
+
+  <!-- QR勤怠: 出勤用QRコード -->
+  <div class="card" style="border-left:4px solid var(--acc)">
+    <div class="card-title">📷 出勤用QRコード（スタッフがスキャンして打刻）</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">
+      QRコードは<strong>毎日自動で変わります</strong>（前日のQRでは打刻できません）。
+      教室のタブレットで表示するか、当日印刷して掲示してください。
+    </div>
+    <button class="btn bp" onclick="showPunchQr()">今日のQRコードを表示</button>
+    <div id="punch-qr-wrap" style="display:none;margin-top:14px;text-align:center">
+      <div id="punch-qr" style="display:inline-block;background:#fff;padding:14px;border:1px solid var(--bdr);border-radius:10px"></div>
+      <div style="font-size:13px;font-weight:700;margin-top:8px" id="punch-qr-date"></div>
+      <div style="font-size:12px;color:var(--tx2)">手入力用コード: <b class="num" id="punch-qr-token"></b></div>
+    </div>
   </div>
 
   <!-- プレビュー確認カード -->
@@ -978,6 +1054,7 @@ function applyRole(){
   nav.className='nav'+(isAdmin?'':' s');
   pill.textContent=isAdmin?'ADMIN':'STAFF';
   document.getElementById('t-my').classList.toggle('hidden', isAdmin);
+  document.getElementById('t-punch').classList.toggle('hidden', isAdmin);
   document.getElementById('t-swap').classList.toggle('hidden', isAdmin);
   document.getElementById('t-help').classList.toggle('hidden', isAdmin);
   document.getElementById('t-dash').classList.toggle('hidden', !isAdmin);
@@ -1019,6 +1096,7 @@ function updateDeadlinePill(){
 function doLogout(){
   // スタッフ名は保持したまま(次回ログイン時に自動選択されるように)
   // 「別の人でログイン」する場合はドロップダウンで選び直せる
+  stopScan();
   P={};allEv=[];cal=null;myCal=null;pendingEdits={};editRows=[];
   document.getElementById('app-wrap').style.display='none';
   document.getElementById('login-wrap').style.display='flex';
@@ -1037,10 +1115,230 @@ function go(id,btn){
   document.getElementById('p-'+id).classList.add('active');
   if(btn)btn.classList.add('active');
   if(id==='myshift')initMyCal();
+  if(id==='punch')loadPunch();
   if(id==='swap')loadSwap();
   if(id==='dashboard')loadDash();
   if(id==='admin')loadAdmin();
   if(id==='help')loadHelp();
+  if(id!=='punch')stopScan();
+}
+
+// ===== QR打刻(スタッフ) =====
+var scanStream=null, scanRAF=null;
+
+function loadPunch(){
+  var tb=document.getElementById('my-attendance');
+  tb.innerHTML='<tr class="er"><td colspan="4">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(rows){
+      if(!rows||!rows.length){
+        tb.innerHTML='<tr class="er"><td colspan="4">今月の打刻はまだありません</td></tr>';
+        return;
+      }
+      tb.innerHTML=rows.map(function(r){
+        return '<tr><td>'+r.date+'</td><td>'+(r.in||'—')+'</td>'
+          +'<td>'+(r.out||'<span style="color:var(--amb);font-weight:600">未退勤</span>')+'</td>'
+          +'<td>'+(r.out?(r.hours+'h'):'—')+'</td></tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){
+      tb.innerHTML='<tr class="er"><td colspan="4">取得失敗:'+e.message+'</td></tr>';
+    })
+    .getMyAttendance(P.userName);
+}
+
+function startScan(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast('この端末ではカメラを使用できません。手入力をご利用ください。',1);return;
+  }
+  if(typeof jsQR==='undefined'){
+    toast('QR読み取りライブラリを読み込めていません。手入力をご利用ください。',1);return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(function(st){
+      scanStream=st;
+      var video=document.getElementById('scan-video');
+      video.srcObject=st;
+      video.play();
+      document.getElementById('scan-area').style.display='block';
+      document.getElementById('scan-start-btn').style.display='none';
+      scanLoop();
+    })
+    .catch(function(e){
+      toast('カメラを起動できません（権限を確認してください）。手入力もご利用いただけます。',1);
+    });
+}
+
+function scanLoop(){
+  if(!scanStream)return;
+  var video=document.getElementById('scan-video');
+  var canvas=document.getElementById('scan-canvas');
+  if(video.readyState===video.HAVE_ENOUGH_DATA){
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    var img=ctx.getImageData(0,0,canvas.width,canvas.height);
+    var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+    if(code&&code.data){
+      stopScan();
+      doPunch(code.data);
+      return;
+    }
+  }
+  scanRAF=requestAnimationFrame(scanLoop);
+}
+
+function stopScan(){
+  if(scanRAF){cancelAnimationFrame(scanRAF);scanRAF=null;}
+  if(scanStream){scanStream.getTracks().forEach(function(t){t.stop();});scanStream=null;}
+  var area=document.getElementById('scan-area');
+  if(area)area.style.display='none';
+  var btn=document.getElementById('scan-start-btn');
+  if(btn)btn.style.display='';
+}
+
+function punchByToken(){
+  var v=document.getElementById('punch-token-input').value.trim();
+  if(!v){toast('コードを入力してください',1);return;}
+  doPunch(v);
+}
+
+function doPunch(qrText){
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(res){
+      hideLoad();
+      toast(res.message,res.success?0:1);
+      if(res.success){
+        var inp=document.getElementById('punch-token-input');
+        if(inp)inp.value='';
+        loadPunch();
+      }
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .punchAttendance(P.userName,qrText);
+}
+
+// ===== QR勤怠(管理者) =====
+function showPunchQr(){
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(info){
+      hideLoad();
+      var wrap=document.getElementById('punch-qr-wrap');
+      var box=document.getElementById('punch-qr');
+      box.innerHTML='';
+      if(typeof QRCode!=='undefined'){
+        new QRCode(box,{text:info.text,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+      }else{
+        box.innerHTML='<div style="font-size:12px;color:var(--red)">QR描画ライブラリを読み込めませんでした。手入力用コードをご利用ください。</div>';
+      }
+      document.getElementById('punch-qr-date').textContent=info.date+' の出勤用QRコード';
+      document.getElementById('punch-qr-token').textContent=info.token;
+      wrap.style.display='block';
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .getQrPunchInfo();
+}
+
+function loadAttendanceAdmin(){
+  var mEl=document.getElementById('att-month');
+  if(!mEl)return;
+  if(!mEl.value){
+    var d=new Date();
+    mEl.value=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
+  }
+  var month=mEl.value.replace('-','/');
+  var tb=document.getElementById('att-body');
+  tb.innerHTML='<tr class="er"><td colspan="5">読み込み中...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(rows){
+      if(!rows||!rows.length){
+        tb.innerHTML='<tr class="er"><td colspan="5">'+month+' の打刻記録はありません</td></tr>';
+        return;
+      }
+      tb.innerHTML=rows.map(function(r){
+        return '<tr><td>'+r.date+'</td><td>'+r.name+'</td><td>'+(r.in||'—')+'</td>'
+          +'<td>'+(r.out||'<span style="color:var(--amb);font-weight:600">未退勤</span>')+'</td>'
+          +'<td>'+(r.out?(r.hours+'h'):'—')+'</td></tr>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){
+      tb.innerHTML='<tr class="er"><td colspan="5">取得失敗:'+e.message+'</td></tr>';
+    })
+    .getAttendanceForMonth(month);
+}
+
+function loadPayrollActual(){
+  var mEl=document.getElementById('payroll-month');
+  if(!mEl)return;
+  if(!mEl.value){
+    var d=new Date();
+    var pm=new Date(d.getFullYear(),d.getMonth()-1,1); // デフォルトは先月
+    mEl.value=pm.getFullYear()+'-'+('0'+(pm.getMonth()+1)).slice(-2);
+  }
+  var month=mEl.value.replace('-','/');
+  var wrap=document.getElementById('payroll-actual');
+  wrap.innerHTML='<div style="font-size:12px;color:var(--tx2)">読み込み中...</div>';
+  google.script.run
+    .withSuccessHandler(function(r){renderPayrollActual(r);})
+    .withFailureHandler(function(e){
+      wrap.innerHTML='<div style="font-size:12px;color:var(--red)">取得失敗:'+e.message+'</div>';
+    })
+    .getAttendancePayroll(month);
+}
+
+function recalcPayroll(){
+  var mEl=document.getElementById('payroll-month');
+  if(!mEl||!mEl.value){toast('対象月を選択してください',1);return;}
+  var month=mEl.value.replace('-','/');
+  if(!confirm(month+' の給与を勤怠実績から再計算し、「給与計算_実績」シートに保存します。よろしいですか?'))return;
+  showLoad();
+  google.script.run
+    .withSuccessHandler(function(r){
+      hideLoad();
+      if(!r.success){toast('計算失敗:'+r.message,1);return;}
+      toast('計算して保存しました',0);
+      renderPayrollActual(r);
+    })
+    .withFailureHandler(function(e){hideLoad();toast('エラー:'+e.message,1);})
+    .recalcAndSavePayroll(month);
+}
+
+function renderPayrollActual(r){
+  var wrap=document.getElementById('payroll-actual');
+  if(!r||!r.success){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--red)">'+((r&&r.message)||'取得失敗')+'</div>';
+    return;
+  }
+  var names=Object.keys(r.summary||{});
+  if(!names.length){
+    wrap.innerHTML='<div class="notice ni">'+r.month+' の勤怠記録がありません（QR打刻が始まると自動で集計されます）</div>';
+    return;
+  }
+  var fmt=function(n){return Number(n).toLocaleString('ja-JP');};
+  var src=r.fromSheet
+    ?'<span class="badge ba">確定済み'+(r.calculatedAt?'（'+r.calculatedAt+' 計算）':'')+'</span>'
+    :'<span class="badge bp2">未確定（その場で計算）</span>';
+  var html='<div style="margin-bottom:10px;font-size:12px">'+r.month+' '+src+'</div>';
+  html+='<div class="sg" style="margin-bottom:12px">'
+    +'<div class="sc"><div class="sn" style="color:var(--red)">'+fmt(Math.round(r.totalPay))+'</div><div class="sl">合計支給額(円)</div></div>'
+    +'<div class="sc"><div class="sn">'+r.totalHours+'</div><div class="sl">合計実働(h)</div></div>'
+    +'</div>';
+  html+='<div class="tw"><table><thead><tr><th>スタッフ</th><th>出勤日数</th><th>実働(h)</th><th>時給</th><th>給与(円)</th></tr></thead><tbody>';
+  names.sort(function(a,b){return (r.summary[b].pay||0)-(r.summary[a].pay||0);}).forEach(function(name){
+    var s=r.summary[name];
+    var warn=s.openDays?' <span style="font-size:10px;color:var(--amb)">⚠未退勤'+s.openDays+'件</span>':'';
+    var noWage=!s.wage;
+    html+='<tr'+(noWage?' style="color:var(--tx2)"':'')+'>'
+      +'<td>'+name+warn+(noWage?' <span style="font-size:10px;color:var(--amb)">⚠時給未設定</span>':'')+'</td>'
+      +'<td>'+s.days+'日</td><td>'+s.hours+'h</td>'
+      +'<td>'+(s.wage?fmt(s.wage)+'円':'—')+'</td>'
+      +'<td style="font-weight:700">'+fmt(s.pay)+'円</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
 }
 
 // ===== CALENDAR =====
@@ -1564,6 +1862,8 @@ function loadDash(){
   loadAdminHopeOffList();
   loadHopeOffAlerts();
   loadDashHours();
+  loadAttendanceAdmin();
+  loadPayrollActual();
   hideLoad();
 }
 
